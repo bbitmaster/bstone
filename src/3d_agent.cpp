@@ -621,7 +621,7 @@ void ControlMovement(
 
 		const auto angle_delta = 90 - static_cast<int>(bstone::math::rad_to_deg(std::atan2(y, x)));
 		const auto angle = clamp_angle(ob->angle + angle_delta);
-		const auto value = std::abs(y);
+		const auto value = std::sqrt(y*y + x*x);
 
 		Thrust(static_cast<std::int16_t>(angle), value);
 	}
@@ -3675,6 +3675,7 @@ int aog_input_floor()
 
 	const auto cursor_current_floor = static_cast<int>(gamestate.mapon);
 	auto cursor_target_floor = cursor_current_floor;
+	ControlInfo ci;
 
 	while (result == -2)
 	{
@@ -3682,6 +3683,8 @@ int aog_input_floor()
 		IN_ClearKeysDown();
 
 		in_handle_events();
+
+		ReadAnyControl(&ci);
 
 		if (Keyboard[ScanCode::sc_escape] ||
 			Keyboard[ScanCode::sc_mouse_right])
@@ -3699,7 +3702,9 @@ int aog_input_floor()
 			in_is_binding_pressed(BindingId::e_bi_forward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_next_weapon) ||
 			in_is_binding_pressed(BindingId::e_bi_right) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_right))
+			in_is_binding_pressed(BindingId::e_bi_strafe_right) ||
+			(ci.dir == dir_East) ||
+			(ci.dir == dir_North))
 		{
 			cursor_target_floor += 1;
 
@@ -3715,7 +3720,9 @@ int aog_input_floor()
 			in_is_binding_pressed(BindingId::e_bi_backward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_previous_weapon) ||
 			in_is_binding_pressed(BindingId::e_bi_left) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_left))
+			in_is_binding_pressed(BindingId::e_bi_strafe_left) ||
+			(ci.dir == dir_West) ||
+			(ci.dir == dir_South))
 		{
 			cursor_target_floor -= 1;
 
@@ -3729,7 +3736,8 @@ int aog_input_floor()
 		else if (
 			Keyboard[ScanCode::sc_space] ||
 			Keyboard[ScanCode::sc_mouse_left] ||
-			in_is_binding_pressed(BindingId::e_bi_attack))
+			in_is_binding_pressed(BindingId::e_bi_attack) ||
+			ci.button0)
 		{
 			target_level = cursor_target_floor;
 
@@ -3996,7 +4004,7 @@ int ps_input_floor()
 
 	controlx = 0;
 	controly = 0;
-
+	ControlInfo ci;
 	IN_ClearKeysDown();
 
 	while (rt_code == -2)
@@ -4005,12 +4013,15 @@ int ps_input_floor()
 
 		// BBi
 		in_handle_events();
+		ReadAnyControl(&ci);
 
-		if (Keyboard[ScanCode::sc_left_arrow])
+		if (Keyboard[ScanCode::sc_left_arrow] ||
+			ci.dir == dir_West)
 		{
 			controlx = -1;
 		}
-		else if (Keyboard[ScanCode::sc_right_arrow])
+		else if (Keyboard[ScanCode::sc_right_arrow] ||
+			ci.dir == dir_East)
 		{
 			controlx = 1;
 		}
@@ -4019,11 +4030,13 @@ int ps_input_floor()
 			controlx = 0;
 		}
 
-		if (Keyboard[ScanCode::sc_up_arrow])
+		if (Keyboard[ScanCode::sc_up_arrow] ||
+			ci.dir == dir_North)
 		{
 			controly = -1;
 		}
-		else if (Keyboard[ScanCode::sc_down_arrow])
+		else if (Keyboard[ScanCode::sc_down_arrow] ||
+			ci.dir == dir_South)
 		{
 			controly = 1;
 		}
@@ -4041,7 +4054,7 @@ int ps_input_floor()
 
 			break;
 		}
-		else if (Keyboard[ScanCode::sc_return] || buttonstate[bt_attack])
+		else if (Keyboard[ScanCode::sc_return] || buttonstate[bt_attack] || ci.button0)
 		{
 			if (locked)
 			{

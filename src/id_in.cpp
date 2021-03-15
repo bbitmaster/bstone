@@ -80,6 +80,13 @@ Free Software Foundation, Inc.,
 bool MousePresent;
 bool NGinstalled = false;
 
+int in_joy_deadzone[k_max_joystick_axes];
+int in_joy_sensitivity[k_max_joystick_axes];
+
+int JoyNumAxes;
+int JoyNumButtons;
+
+std::bitset<NumCodes> jstate;
 
 //      Global variables
 ControlType ControlTypeUsed; // JAM - added
@@ -111,6 +118,8 @@ Bindings in_bindings;
 bool in_is_mouse_grabbed = false;
 static bool in_last_is_mouse_grabbed = false;
 
+SDL_GameController *GameController;
+SDL_Joystick* Joystick;
 /*
 =============================================================================
 
@@ -128,6 +137,13 @@ static Direction DirTable[] = // Quick lookup for total direction
 	dir_SouthWest, dir_South, dir_SouthEast
 };
 
+
+// Flip the right stick axes to match usual mapping of Joystick API.
+static SDL_GameControllerAxis GameControllerAxisMap[SDL_CONTROLLER_AXIS_MAX] = {
+	SDL_CONTROLLER_AXIS_LEFTX, SDL_CONTROLLER_AXIS_LEFTY, // X, Y
+	SDL_CONTROLLER_AXIS_RIGHTY, SDL_CONTROLLER_AXIS_RIGHTX, // Z, R
+	SDL_CONTROLLER_AXIS_TRIGGERLEFT, SDL_CONTROLLER_AXIS_TRIGGERRIGHT
+};
 
 //      Internal routines
 
@@ -1079,6 +1095,198 @@ static void in_handle_window(
 	}
 }
 
+
+
+int IN_JoyButtons(bool &bt_esc)
+{
+	if (GameController)
+	{
+		SDL_GameControllerUpdate();
+
+		int res = 0;
+		for (int i = 0; i < JoyNumButtons; ++i)
+		{
+			if (SDL_GameControllerGetButton(GameController, (SDL_GameControllerButton)i))
+			{
+				// Attempt to allow controllers using the game controller API
+				// to enter the menu.
+				if (i == SDL_CONTROLLER_BUTTON_START)
+					bt_esc = true;
+				else
+					res |= 1 << i;
+			}
+		}
+		return res;
+	}
+
+	if (!Joystick) return 0;
+
+
+	int param_joystickhat = 0;
+	SDL_JoystickUpdate();
+	int res = 0;
+	int i = 0;
+	// Need four buttons for hat
+	if (JoyNumButtons < 28)
+	{
+		uint8_t hatState = SDL_JoystickGetHat(Joystick, param_joystickhat);
+		if (hatState & SDL_HAT_UP) {
+			res = 1 || (res << 1);
+			i += 1;
+		}
+		if (hatState & SDL_HAT_RIGHT) {
+			res = 1 || (res << 1);
+			i += 1;
+		}
+		if (hatState & SDL_HAT_DOWN) {
+			res = 1 || (res << 1);
+			i += 1;
+		}
+		if (hatState & SDL_HAT_LEFT) {
+			res = 1 || (res << 1);
+			i += 1;
+		}
+	}
+
+	for (; i < JoyNumButtons && i < 32; i++)
+	{
+		res |= SDL_JoystickGetButton(Joystick, i) << i;
+	}
+
+	return res;
+}
+
+///////////////////////////////////////////////////////////////////////////
+//
+//	IN_GetJoyDelta() - Returns the relative movement of the specified
+//		joystick (from +/-127)
+//
+///////////////////////////////////////////////////////////////////////////
+void IN_GetJoyDelta(int* dx, int* dy)
+{
+	if (!GameController && !Joystick)
+	{
+		*dx = *dy = 0;
+		return;
+	}
+	int param_joystickhat = 0;
+	int x, y;
+	if (GameController)
+	{
+		SDL_GameControllerUpdate();
+		x = SDL_GameControllerGetAxis(GameController, SDL_CONTROLLER_AXIS_LEFTX) >> 8;
+		y = SDL_GameControllerGetAxis(GameController, SDL_CONTROLLER_AXIS_LEFTY) >> 8;
+
+		if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT))
+			x += 127;
+		else if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT))
+			x -= 127;
+		if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_DOWN))
+			y += 127;
+		else if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_UP))
+			y -= 127;
+	}
+	else
+	{
+		SDL_JoystickUpdate();
+		x = SDL_JoystickGetAxis(Joystick, 0) >> 8;
+		y = SDL_JoystickGetAxis(Joystick, 1) >> 8;
+
+		if (param_joystickhat != -1)
+		{
+			uint8_t hatState = SDL_JoystickGetHat(Joystick, param_joystickhat);
+			if (hatState & SDL_HAT_RIGHT)
+				x += 127;
+			else if (hatState & SDL_HAT_LEFT)
+				x -= 127;
+			if (hatState & SDL_HAT_DOWN)
+				y += 127;
+			else if (hatState & SDL_HAT_UP)
+				y -= 127;
+		}
+	}
+
+	if (x < -128) x = -128;
+	else if (x > 127) x = 127;
+
+	if (y < -128) y = -128;
+	else if (y > 127) y = 127;
+
+	*dx = x;
+	*dy = y;
+}
+
+static float RawJoyAxis[k_max_joystick_axes];
+
+int IN_GetJoyAxis(int axis)
+{
+	if (GameController)
+		return SDL_GameControllerGetAxis(GameController, GameControllerAxisMap[axis]);
+	return SDL_JoystickGetAxis(Joystick, axis);
+}
+
+void UpdateRawJoystickAxis(void)
+{
+	static std::bitset<NumCodes> jstate;
+	// poll axes as buttons
+	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++) {
+		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		jstate[axisnum] = rawaxis;
+	}
+}
+
+void PollJoystickButton(void)
+{
+	//This function assumes UpdateRawJoystickAxis() has been called recently
+	static std::bitset<NumCodes> jstate;
+	// TODO: currently the below code could be better if it set Keyboard[joystick_scancode] to
+	// indicate the button has been pressed. This would allow the axes to be used as buttons.
+	// Find a way to fix this without breaking movement.
+	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++) {
+		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		const int dzfactor = clamp<int>(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
+		
+		for (int direction = 0; direction <= 1; direction++) {
+			ScanCode i = (ScanCode)((int)ScanCode::sc_joy_axis0_up + (axisnum * 2) + direction);
+
+			int axis = direction == 1 ? rawaxis : -rawaxis;
+			if (axis > dzfactor) {
+				if (!jstate[(int)i]) {
+					LastScan = (ScanCode)i;
+				}
+				jstate[(int)i] = true;
+			}
+			else if (jstate[(int)i]) {
+				jstate[(int)i] = false;
+			}
+		}
+	}
+
+	// poll joystick buttons
+	bool bt_esc = false;
+	int buttons = IN_JoyButtons(bt_esc);
+	if (bt_esc)Keyboard[ScanCode::sc_escape] = true;
+	int btn_idx = 0;
+	while (btn_idx < JoyNumButtons) {
+		if (buttons & 1) {
+			if (!jstate[(int)ScanCode::sc_joy_btn0 + (btn_idx)]) {
+				LastScan = (ScanCode)((int)ScanCode::sc_joy_btn0 + (btn_idx));
+			}
+			jstate[(int)ScanCode::sc_joy_btn0 + (btn_idx)] = true;
+			Keyboard[(int)ScanCode::sc_joy_btn0 + (btn_idx)] = true;
+		}
+		else {
+			if (jstate[(int)ScanCode::sc_joy_btn0 + (btn_idx)]) {
+				// this is reached when the joystick button is released, set the keyboard state to false
+				Keyboard[(int)ScanCode::sc_joy_btn0 + (btn_idx)] = false;
+			}
+			jstate[(int)ScanCode::sc_joy_btn0 + (btn_idx)] = false;
+		}
+		buttons >>= 1;
+		btn_idx += 1;
+	}
+}
+
 void in_handle_events()
 {
 	SDL_Event e;
@@ -1102,6 +1310,15 @@ void in_handle_events()
 			TranslateAnalogEvent(&e);
 			break;
 #endif
+		
+		case SDL_JOYBUTTONDOWN:
+		case SDL_JOYBUTTONUP:
+		case SDL_JOYAXISMOTION:
+			if (GameController || Joystick) {
+				UpdateRawJoystickAxis();
+				PollJoystickButton();
+			}
+			
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:
 			in_handle_keyboard(e.key);
@@ -1420,8 +1637,37 @@ void IN_Startup()
 	SDL_JoystickOpen(0);
 	SDL_JoystickEventState(SDL_ENABLE);
 #endif
+	init_joystick_gamepad();
 
 	IN_Started = true;
+}
+
+void init_joystick_gamepad() {
+	int param_joystickindex = 0;
+	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == 0 &&
+		param_joystickindex >= 0 && param_joystickindex < SDL_NumJoysticks())
+	{
+		if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0 && SDL_IsGameController(param_joystickindex))
+		{
+			GameController = SDL_GameControllerOpen(param_joystickindex);
+			if (GameController)
+			{
+				SDL_GameControllerEventState(SDL_IGNORE);
+				JoyNumButtons = std::max(int(SDL_CONTROLLER_BUTTON_MAX),21);
+				JoyNumAxes = std::max(int(SDL_CONTROLLER_AXIS_MAX), 6);
+			}
+		}
+		else
+		{
+			Joystick = SDL_JoystickOpen(param_joystickindex);
+			if (Joystick)
+			{
+				JoyNumButtons = SDL_JoystickNumButtons(Joystick);
+				if (JoyNumButtons > 32) JoyNumButtons = 32;      // only up to 32 buttons are supported
+				JoyNumAxes = SDL_JoystickNumAxes(Joystick);
+			}
+		}
+	}
 }
 
 // BBi
@@ -1496,15 +1742,33 @@ void in_set_default_bindings()
 	in_bindings[e_bi_pause][1] = ScanCode::sc_pause;
 
 	in_bindings[e_bi_grab_mouse][0] = ScanCode::sc_u;
+
+	// joypad bindings
+	in_bindings[e_bi_forward][2] = ScanCode::sc_joy_axis1_up;
+	in_bindings[e_bi_backward][2] = ScanCode::sc_joy_axis1_down;
+	in_bindings[e_bi_strafe_left][2] = ScanCode::sc_joy_axis0_up;
+	in_bindings[e_bi_strafe_right][2] = ScanCode::sc_joy_axis0_down;
+	in_bindings[e_bi_left][2] = ScanCode::sc_joy_axis3_up;
+	in_bindings[e_bi_right][2] = ScanCode::sc_joy_axis3_down;
+
+
+
+	for (int i = 0; i < k_max_joystick_axes; i++) {
+		in_joy_deadzone[i] = 2;
+		in_joy_sensitivity[i] = 10;
+	}
 }
 
 bool in_is_binding_pressed(
 	BindingId binding_id)
 {
 	const Binding& binding = in_bindings[binding_id];
+	bool b = false;
 
-	return (binding[0] != ScanCode::sc_none && Keyboard[binding[0]]) ||
-		(binding[1] != ScanCode::sc_none && Keyboard[binding[1]]);
+	for (int i = 0; i < k_max_binding_keys; i++) {
+		b = b || (binding[i] != ScanCode::sc_none && Keyboard[binding[i]]);
+	}
+	return b;
 }
 
 void in_reset_binding_state(
@@ -1512,15 +1776,13 @@ void in_reset_binding_state(
 {
 	const auto& binding = in_bindings[binding_id];
 
-	if (binding[0] != ScanCode::sc_none)
-	{
-		Keyboard[binding[0]] = false;
+	for (int i = 0; i < k_max_binding_keys; i++) {
+		if (binding[i] != ScanCode::sc_none)
+		{
+			Keyboard[binding[i]] = false;
+		}
 	}
 
-	if (binding[1] != ScanCode::sc_none)
-	{
-		Keyboard[binding[1]] = false;
-	}
 }
 
 void in_reset_state()

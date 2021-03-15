@@ -989,7 +989,7 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_space] = "SPACE";
 	binds_names[ScanCode::sc_minus] = "-";
 	binds_names[ScanCode::sc_equals] = "=";
-	binds_names[ScanCode::sc_backspace] = "BACKSPACE";
+	binds_names[ScanCode::sc_backspace] = "B_SPACE";
 	binds_names[ScanCode::sc_tab] = "TAB";
 	binds_names[ScanCode::sc_alt] = "ALT";
 	binds_names[ScanCode::sc_left_bracket] = "[";
@@ -997,7 +997,7 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_control] = "CTRL";
 	binds_names[ScanCode::sc_caps_lock] = "CAPS LOCK";
 	binds_names[ScanCode::sc_num_lock] = "NUM LOCK";
-	binds_names[ScanCode::sc_scroll_lock] = "SCROLL LOCK";
+	binds_names[ScanCode::sc_scroll_lock] = "SCRLL LCK";
 	binds_names[ScanCode::sc_left_shift] = "L-SHIFT";
 	binds_names[ScanCode::sc_right_shift] = "R-SHIFT";
 	binds_names[ScanCode::sc_up_arrow] = "UP";
@@ -1025,7 +1025,7 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_f12] = "F12";
 	binds_names[ScanCode::sc_print_screen] = "PRT SCR";
 	binds_names[ScanCode::sc_pause] = "PAUSE";
-	binds_names[ScanCode::sc_back_quote] = "BACK QUOTE";
+	binds_names[ScanCode::sc_back_quote] = "BCK_QOTE";
 	binds_names[ScanCode::sc_semicolon] = ";";
 	binds_names[ScanCode::sc_quote] = "'";
 	binds_names[ScanCode::sc_backslash] = "\\";
@@ -1070,8 +1070,8 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_y] = "Y";
 	binds_names[ScanCode::sc_z] = "Z";
 
-	binds_names[ScanCode::sc_kp_minus] = "KP MINUS";
-	binds_names[ScanCode::sc_kp_plus] = "KP PLUS";
+	binds_names[ScanCode::sc_kp_minus] = "KPMINUS";
+	binds_names[ScanCode::sc_kp_plus] = "KPPLUS";
 
 	binds_names[ScanCode::sc_mouse_left] = "MOUSE 1";
 	binds_names[ScanCode::sc_mouse_middle] = "MOUSE 2";
@@ -1079,8 +1079,56 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_mouse_x1] = "MOUSE 4";
 	binds_names[ScanCode::sc_mouse_x2] = "MOUSE 5";
 
-	binds_names[ScanCode::sc_mouse_wheel_down] = "MWHEEL DOWN";
-	binds_names[ScanCode::sc_mouse_wheel_up] = "MWHEEL UP";
+	binds_names[ScanCode::sc_mouse_wheel_down] = "WHL_DOWN";
+	binds_names[ScanCode::sc_mouse_wheel_up] = "WHL_UP";
+
+	binds_names[ScanCode::sc_joy_axis0_down] = "A0D";
+	binds_names[ScanCode::sc_joy_axis0_up] = "A0U";
+	binds_names[ScanCode::sc_joy_axis1_down] = "A1D";
+	binds_names[ScanCode::sc_joy_axis1_up] = "A1U";
+	binds_names[ScanCode::sc_joy_axis2_down] = "A2D";
+	binds_names[ScanCode::sc_joy_axis2_up] = "A2U";
+	binds_names[ScanCode::sc_joy_axis3_down] = "A3D";
+	binds_names[ScanCode::sc_joy_axis3_up] = "A3U";
+	binds_names[ScanCode::sc_joy_axis4_down] = "A4D";
+	binds_names[ScanCode::sc_joy_axis4_up] = "A4U";
+	binds_names[ScanCode::sc_joy_axis5_down] = "A5D";
+	binds_names[ScanCode::sc_joy_axis5_up] = "A5U";
+	binds_names[ScanCode::sc_joy_axis6_down] = "A6D";
+	binds_names[ScanCode::sc_joy_axis6_up] = "A6U";
+
+	binds_names[ScanCode::sc_joy_btn0] = "JY0";
+	binds_names[ScanCode::sc_joy_btn1] = "JY1";
+	binds_names[ScanCode::sc_joy_btn2] = "JY2";
+	binds_names[ScanCode::sc_joy_btn3] = "JY3";
+	binds_names[ScanCode::sc_joy_btn4] = "JY4";
+	binds_names[ScanCode::sc_joy_btn5] = "JY5";
+	binds_names[ScanCode::sc_joy_btn6] = "JY6";
+	binds_names[ScanCode::sc_joy_btn7] = "JY7";
+	binds_names[ScanCode::sc_joy_btn8] = "JY8";
+	binds_names[ScanCode::sc_joy_btn9] = "JY9";
+	binds_names[ScanCode::sc_joy_btn10] = "JY10";
+	binds_names[ScanCode::sc_joy_btn11] = "JY11";
+	binds_names[ScanCode::sc_joy_btn12] = "JY12";
+	binds_names[ScanCode::sc_joy_btn13] = "JY13";
+	binds_names[ScanCode::sc_joy_btn14] = "JY14";
+	binds_names[ScanCode::sc_joy_btn15] = "JY15";
+	binds_names[ScanCode::sc_joy_btn16] = "JY16";
+	binds_names[ScanCode::sc_joy_btn17] = "JY17";
+	binds_names[ScanCode::sc_joy_btn18] = "JY18";
+	binds_names[ScanCode::sc_joy_btn19] = "JY19";
+	binds_names[ScanCode::sc_joy_btn20] = "JY20";
+	binds_names[ScanCode::sc_joy_btn21] = "JY21";
+	binds_names[ScanCode::sc_joy_btn22] = "JY22";
+	binds_names[ScanCode::sc_joy_btn23] = "JY23";
+	binds_names[ScanCode::sc_joy_btn24] = "JY24";
+	binds_names[ScanCode::sc_joy_btn25] = "JY25";
+	binds_names[ScanCode::sc_joy_btn26] = "JY26";
+	binds_names[ScanCode::sc_joy_btn27] = "JY27";
+	binds_names[ScanCode::sc_joy_btn28] = "JY28";
+	binds_names[ScanCode::sc_joy_btn29] = "JY29";
+	binds_names[ScanCode::sc_joy_btn30] = "JY30";
+	binds_names[ScanCode::sc_joy_btn31] = "JY31";
 
 	for (const auto& binds_name : binds_names)
 	{
@@ -1406,6 +1454,7 @@ void binds_draw_menu()
 	binds_initialize_menu();
 
 	binds_is_assigning = false;
+	ControlInfo ci;
 
 	while (true)
 	{
@@ -1429,6 +1478,8 @@ void binds_draw_menu()
 			{
 				LastScan = ScanCode::sc_none;
 				in_handle_events();
+				// set escape from joypad start
+				ReadAnyControl(&ci);
 
 				if (Keyboard[ScanCode::sc_escape])
 				{
@@ -1456,7 +1507,8 @@ void binds_draw_menu()
 		}
 		else
 		{
-			if (Keyboard[ScanCode::sc_up_arrow])
+			ReadAnyControl(&ci);
+			if (ci.dir == dir_North)
 			{
 				if (!is_up_pressed)
 				{
@@ -1469,7 +1521,7 @@ void binds_draw_menu()
 				is_up_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_down_arrow])
+			if (ci.dir == dir_South)
 			{
 				if (!is_down_pressed)
 				{
@@ -1482,7 +1534,7 @@ void binds_draw_menu()
 				is_down_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_left_arrow])
+			if (ci.dir == dir_West)
 			{
 				if (!is_left_pressed)
 				{
@@ -1495,7 +1547,7 @@ void binds_draw_menu()
 				is_left_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_right_arrow])
+			if (ci.dir == dir_East)
 			{
 				if (!is_right_pressed)
 				{
@@ -1534,7 +1586,7 @@ void binds_draw_menu()
 				is_pgup_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_return])
+			if (Keyboard[ScanCode::sc_return] || ci.button0)
 			{
 				if (!is_enter_pressed)
 				{
@@ -1589,9 +1641,9 @@ void binds_draw_menu()
 			{
 				handle_left = false;
 
-				if (binds_key_index == 1)
+				if (binds_key_index > 0)
 				{
-					binds_key_index = 0;
+					binds_key_index -= 1;
 				}
 			}
 
@@ -1599,9 +1651,9 @@ void binds_draw_menu()
 			{
 				handle_right = false;
 
-				if (binds_key_index == 0)
+				if (binds_key_index < 2)
 				{
-					binds_key_index = 1;
+					binds_key_index += 1;
 				}
 			}
 
@@ -1640,6 +1692,7 @@ void binds_draw_menu()
 
 			if (handle_escape)
 			{
+				Keyboard[ScanCode::sc_escape] = false;
 				handle_escape = false;
 				sd_play_player_sound(ESCPRESSEDSND, bstone::ActorChannel::unpausable);
 				break;
@@ -4178,6 +4231,33 @@ void ReadAnyControl(
 			ci->button2 = buttons & 4;
 			ci->button3 = false;
 		}
+	}
+	if (Joystick || GameController) {
+		int jx, jy, jb;
+
+		IN_GetJoyDelta(&jx, &jy);
+		if (jy < -SENSITIVE)
+			ci->dir = dir_North;
+		else if (jy > SENSITIVE)
+			ci->dir = dir_South;
+
+		if (jx < -SENSITIVE)
+			ci->dir = dir_West;
+		else if (jx > SENSITIVE)
+			ci->dir = dir_East;
+		bool bt_esc = false;
+		jb = IN_JoyButtons(bt_esc);
+		if (bt_esc) {
+			Keyboard[ScanCode::sc_escape] = true;
+		}
+		if (jb)
+		{
+			ci->button0 = !!(jb & 1);
+			ci->button1 = !!(jb & 2);
+			ci->button2 = !!(jb & 4);
+			ci->button3 = !!(jb & 8);
+		}
+
 	}
 }
 

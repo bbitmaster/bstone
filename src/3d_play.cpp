@@ -497,7 +497,6 @@ void PollKeyboardMove()
 		controlx += value;
 	}
 
-	strafe_value = 0;
 
 	if (in_is_binding_pressed(e_bi_strafe))
 	{
@@ -509,6 +508,7 @@ void PollKeyboardMove()
 		{
 			strafe_value = value;
 		}
+
 	}
 	else if (in_is_binding_pressed(e_bi_strafe_left))
 	{
@@ -553,6 +553,71 @@ void PollMouseMove()
 
 	controlx += static_cast<int>(delta_x);
 	controly += static_cast<int>(delta_y);
+}
+
+// poll joystick move
+
+void PollJoystickMove(void)
+{
+	int axisvalues[k_max_joystick_axes * 2];
+
+	//unset any keyboard simulated joypad axis presses since we handle movement here
+	for (int i = 0; i < k_max_joystick_axes; i++) {
+		Keyboard[(int)ScanCode::sc_joy_axis0_up + i] = false;
+	}
+
+
+	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++) {
+		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		const int dzfactor = clamp<int>(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
+		int axis = clamp(abs(rawaxis) + 1 - dzfactor, 0, 0x8000) * 5 * in_joy_sensitivity[axisnum] / (0x8000 - dzfactor);
+
+		for (int direction = 0; direction <= 1; direction++) {
+			axisvalues[axisnum * 2 + direction] = 0;
+			// if pressing up, and direction is up, set up axis to move negative
+			if (rawaxis < 0 && direction == 0) {
+				axisvalues[axisnum * 2 + direction] = axis;
+			}
+			if (rawaxis > 0 && direction == 1) {
+				axisvalues[axisnum * 2 + direction] = axis;
+			}
+		}
+	}
+
+	int multiplier = tics;
+	if (in_is_binding_pressed(e_bi_run)) {
+		multiplier *= 2;
+	}
+
+	int axisnum;
+	for (int k = 0; k < k_max_binding_keys; ++k)
+	{
+		axisnum = (int)in_bindings[e_bi_forward][k] - (int)ScanCode::sc_joy_axis0_up;
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2) {
+
+			controly -= (axisvalues[axisnum] * multiplier);
+		}
+		axisnum = (int)in_bindings[e_bi_backward][k] - (int)ScanCode::sc_joy_axis0_up;
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2) {
+			controly += (axisvalues[axisnum]* multiplier);
+		}
+		axisnum = (int)in_bindings[e_bi_left][k] - (int)ScanCode::sc_joy_axis0_up;
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2) {
+			controlx -= (axisvalues[axisnum]* multiplier);
+		}
+		axisnum = (int)in_bindings[e_bi_right][k] - (int)ScanCode::sc_joy_axis0_up;
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2) {
+			controlx += (axisvalues[axisnum]* multiplier);
+		}
+		axisnum = (int)in_bindings[e_bi_strafe_left][k] - (int)ScanCode::sc_joy_axis0_up;
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2 && axisvalues[axisnum] != 0) {
+			strafe_value = -(axisvalues[axisnum] * multiplier);
+		}
+		axisnum = (int)in_bindings[e_bi_strafe_right][k] - (int)ScanCode::sc_joy_axis0_up;
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2 && axisvalues[axisnum] != 0) {
+			strafe_value = (axisvalues[axisnum] * multiplier);
+		}
+	}
 }
 
 /*
@@ -615,6 +680,7 @@ void PollControls()
 	// get timing info for last frame
 	//
 	CalcTics();
+	strafe_value = 0;
 
 	// BBi
 	in_handle_events();
@@ -631,6 +697,10 @@ void PollControls()
 	//
 	// get movements
 	//
+	if (GameController || Joystick) {
+		PollJoystickMove();
+	}
+
 	PollKeyboardMove();
 
 	if (mouseenabled)
