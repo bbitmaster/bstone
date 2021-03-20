@@ -1256,9 +1256,6 @@ void PollJoystickButton(void)
 {
 	//This function assumes UpdateRawJoystickAxis() has been called recently
 	static std::bitset<NumCodes> jstate;
-	// TODO: currently the below code could be better if it set Keyboard[joystick_scancode] to
-	// indicate the button has been pressed. This would allow the axes to be used as buttons.
-	// Find a way to fix this without breaking movement.
 
 	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++) {
 		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
@@ -1290,6 +1287,7 @@ void PollJoystickButton(void)
 	bool bt_esc = false;
 	int buttons = IN_JoyButtons(bt_esc);
 	if (bt_esc && !prev_bt_esc)Keyboard[ScanCode::sc_escape] = true;
+
 	// unset keyboard bt esc if we just depressed the key
 	// this is a hack to unset the esc key
 	if (prev_bt_esc && !bt_esc) {
