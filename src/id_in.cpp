@@ -1235,6 +1235,23 @@ void UpdateRawJoystickAxis(void)
 	}
 }
 
+bool check_is_movement_key(int key) {
+	if (key == (int)ScanCode::sc_none)
+		return false;
+
+	int run_keys[] = { e_bi_forward, e_bi_backward, e_bi_left, e_bi_right, e_bi_strafe_left, e_bi_strafe_right };
+
+	for (int b = 0; b < 6; ++b)
+	{
+		for (int k = 0; k < k_max_binding_keys; ++k)
+		{
+			if(key == (int)in_bindings[run_keys[b]][k]){
+				return true;
+			}
+		}
+	}
+	return false;
+}
 void PollJoystickButton(void)
 {
 	//This function assumes UpdateRawJoystickAxis() has been called recently
@@ -1242,6 +1259,7 @@ void PollJoystickButton(void)
 	// TODO: currently the below code could be better if it set Keyboard[joystick_scancode] to
 	// indicate the button has been pressed. This would allow the axes to be used as buttons.
 	// Find a way to fix this without breaking movement.
+
 	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++) {
 		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
 		const int dzfactor = clamp<int>(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
@@ -1253,27 +1271,41 @@ void PollJoystickButton(void)
 			if (axis > dzfactor) {
 				if (!jstate[(int)i]) {
 					LastScan = (ScanCode)i;
+					if (!check_is_movement_key((int)i)) {
+						Keyboard[(int)i] = true;
+					}
 				}
 				jstate[(int)i] = true;
 			}
 			else if (jstate[(int)i]) {
 				jstate[(int)i] = false;
+				if (!check_is_movement_key((int)i)) {
+					Keyboard[(int)i] = false;
+				}
 			}
 		}
 	}
-
+	static bool prev_bt_esc;
 	// poll joystick buttons
 	bool bt_esc = false;
 	int buttons = IN_JoyButtons(bt_esc);
-	if (bt_esc)Keyboard[ScanCode::sc_escape] = true;
+	if (bt_esc && !prev_bt_esc)Keyboard[ScanCode::sc_escape] = true;
+	// unset keyboard bt esc if we just depressed the key
+	// this is a hack to unset the esc key
+	if (prev_bt_esc && !bt_esc) {
+		Keyboard[ScanCode::sc_escape] = false;
+	}
+
 	int btn_idx = 0;
+	prev_bt_esc = bt_esc;
+
 	while (btn_idx < JoyNumButtons) {
 		if (buttons & 1) {
 			if (!jstate[(int)ScanCode::sc_joy_btn0 + (btn_idx)]) {
 				LastScan = (ScanCode)((int)ScanCode::sc_joy_btn0 + (btn_idx));
+				Keyboard[(int)ScanCode::sc_joy_btn0 + (btn_idx)] = true;
 			}
 			jstate[(int)ScanCode::sc_joy_btn0 + (btn_idx)] = true;
-			Keyboard[(int)ScanCode::sc_joy_btn0 + (btn_idx)] = true;
 		}
 		else {
 			if (jstate[(int)ScanCode::sc_joy_btn0 + (btn_idx)]) {
@@ -1318,6 +1350,7 @@ void in_handle_events()
 				UpdateRawJoystickAxis();
 				PollJoystickButton();
 			}
+			break;
 			
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:

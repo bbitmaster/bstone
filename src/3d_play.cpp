@@ -555,17 +555,9 @@ void PollMouseMove()
 	controly += static_cast<int>(delta_y);
 }
 
-// poll joystick move
-
 void PollJoystickMove(void)
 {
 	int axisvalues[k_max_joystick_axes * 2];
-
-	//unset any keyboard simulated joypad axis presses since we handle movement here
-	for (int i = 0; i < k_max_joystick_axes; i++) {
-		Keyboard[(int)ScanCode::sc_joy_axis0_up + i] = false;
-	}
-
 
 	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++) {
 		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
