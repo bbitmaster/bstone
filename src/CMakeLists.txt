@@ -72,7 +72,7 @@ find_package(Threads REQUIRED)
 # Target.
 #
 add_executable(${PROJECT_NAME} "")
-
+target_link_options(${PROJECT_NAME} PRIVATE "/SUBSYSTEM:CONSOLE")
 
 #
 # Configure files.

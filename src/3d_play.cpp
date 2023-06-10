@@ -512,7 +512,7 @@ void PollKeyboardMove()
 	}
 	else if (in_is_binding_pressed(e_bi_strafe_left))
 	{
-		strafe_value = -value;
+s		strafe_value = -value;
 	}
 	else if (in_is_binding_pressed(e_bi_strafe_right))
 	{
