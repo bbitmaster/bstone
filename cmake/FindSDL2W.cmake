@@ -38,7 +38,7 @@ Targets:
 ]]
 
 
-cmake_minimum_required (VERSION 3.1.3 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.29.5 FATAL_ERROR)
 
 set (SDL2W_VERSION "1.0.4")
 message (STATUS "[SDL2W] Version: ${SDL2W_VERSION}")
@@ -48,7 +48,7 @@ set (SDL2W_TMP_TARGET_MAIN "${SDL2W_TMP_TARGET}main")
 
 set (SDL2W_SDL2_DIR "" CACHE PATH "The directory with CMake files or the directory with MSVC / MinGW development builds. Leave empty to figure out the location of SDL2.")
 
-set (SDL2_DIR "C:\\vclib\\SDL2-2.0.14" CACHE PATH "The directory with CMake files for SDL2." FORCE)
+set (SDL2_DIR "" CACHE PATH "The directory with CMake files for SDL2." FORCE)
 
 find_package (SDL2 QUIET HINTS ${SDL2W_SDL2_DIR})
 

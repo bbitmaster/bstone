@@ -4281,6 +4281,13 @@ std::int16_t Confirm(
 
 	IN_ClearKeysDown();
 
+	// wait until button 0 (confirmation) is released
+	ControlInfo ci;
+	do {
+		ReadAnyControl(&ci);
+	}
+	while (ci.button0);
+
 	//
 	// BLINK CURSOR
 	//
@@ -4310,17 +4317,20 @@ std::int16_t Confirm(
 
 		// BBi
 		IN_CheckAck();
-	} while (!Keyboard[ScanCode::sc_y] && !Keyboard[ScanCode::sc_n] && !Keyboard[ScanCode::sc_escape]);
+		ReadAnyControl(&ci);
+	} while (!Keyboard[ScanCode::sc_y] && !Keyboard[ScanCode::sc_n] && !Keyboard[ScanCode::sc_escape] && !ci.button0);
 
-
-	if (Keyboard[ScanCode::sc_y])
+	ReadAnyControl(&ci);
+	if (Keyboard[ScanCode::sc_y] || ci.button0)
 	{
 		xit = 1;
 		ShootSnd();
 	}
 
-	while (Keyboard[ScanCode::sc_y] || Keyboard[ScanCode::sc_n] || Keyboard[ScanCode::sc_escape])
+	ReadAnyControl(&ci);
+	while (Keyboard[ScanCode::sc_y] || Keyboard[ScanCode::sc_n] || Keyboard[ScanCode::sc_escape] || ci.button0)
 	{
+		ReadAnyControl(&ci);
 		IN_CheckAck();
 	}
 

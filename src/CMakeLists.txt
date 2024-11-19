@@ -22,7 +22,7 @@ Free Software Foundation, Inc.,
 ]]
 
 
-cmake_minimum_required(VERSION 3.1.3 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.29.5 FATAL_ERROR)
 project(bstone VERSION 1.2.11 LANGUAGES CXX)
 
 
@@ -58,8 +58,7 @@ set(BSTONE_SDL2_COMPONENTS "")
 if (BSTONE_USE_STATIC_LINKING)
 	set(BSTONE_SDL2_COMPONENTS "${BSTONE_SDL2_COMPONENTS};static")
 endif ()
-
-find_package(SDL2W 2.0.4 REQUIRED COMPONENTS ${BSTONE_SDL2_COMPONENTS})
+find_package(SDL2W 2.30.9 REQUIRED COMPONENTS ${BSTONE_SDL2_COMPONENTS})
 
 # Threads
 #

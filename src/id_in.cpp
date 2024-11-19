@@ -1343,6 +1343,7 @@ void in_handle_events()
 		
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
+		case SDL_JOYHATMOTION:
 		case SDL_JOYAXISMOTION:
 			if (GameController || Joystick) {
 				UpdateRawJoystickAxis();
@@ -1719,75 +1720,86 @@ void in_clear_mouse_deltas()
 
 void in_set_default_bindings()
 {
-	for (int b = 0; b < k_max_bindings; ++b)
-	{
-		for (int k = 0; k < k_max_binding_keys; ++k)
-		{
-			in_bindings[b][k] = ScanCode::sc_none;
-		}
-	}
+    for (int b = 0; b < k_max_bindings; ++b)
+    {
+        for (int k = 0; k < k_max_binding_keys; ++k)
+        {
+            in_bindings[b][k] = ScanCode::sc_none;
+        }
+    }
 
-	in_bindings[e_bi_forward][0] = ScanCode::sc_w;
-	in_bindings[e_bi_backward][0] = ScanCode::sc_s;
-	in_bindings[e_bi_left][0] = ScanCode::sc_left_arrow;
-	in_bindings[e_bi_right][0] = ScanCode::sc_right_arrow;
-	in_bindings[e_bi_strafe][0] = ScanCode::sc_alt;
-	in_bindings[e_bi_strafe_left][0] = ScanCode::sc_a;
-	in_bindings[e_bi_strafe_right][0] = ScanCode::sc_d;
-	in_bindings[e_bi_run][0] = ScanCode::sc_left_shift;
+    in_bindings[e_bi_forward][0] = ScanCode::sc_w;
+    in_bindings[e_bi_backward][0] = ScanCode::sc_s;
+    in_bindings[e_bi_left][0] = ScanCode::sc_left_arrow;
+    in_bindings[e_bi_right][0] = ScanCode::sc_right_arrow;
+    in_bindings[e_bi_strafe][0] = ScanCode::sc_alt;
+    in_bindings[e_bi_strafe_left][0] = ScanCode::sc_a;
+    in_bindings[e_bi_strafe_right][0] = ScanCode::sc_d;
+    in_bindings[e_bi_run][0] = ScanCode::sc_left_shift;
 
-	in_bindings[e_bi_attack][0] = ScanCode::sc_control;
-	in_bindings[e_bi_attack][1] = ScanCode::sc_mouse_left;
-	in_bindings[e_bi_weapon_1][0] = ScanCode::sc_1;
-	in_bindings[e_bi_weapon_2][0] = ScanCode::sc_2;
-	in_bindings[e_bi_weapon_3][0] = ScanCode::sc_3;
-	in_bindings[e_bi_weapon_4][0] = ScanCode::sc_4;
-	in_bindings[e_bi_weapon_5][0] = ScanCode::sc_5;
-	in_bindings[e_bi_weapon_6][0] = ScanCode::sc_6;
-	in_bindings[e_bi_weapon_7][0] = ScanCode::sc_back_quote;
+    in_bindings[e_bi_attack][0] = ScanCode::sc_control;
+    in_bindings[e_bi_attack][1] = ScanCode::sc_mouse_left;
+    in_bindings[e_bi_attack][2] = ScanCode::sc_joy_btn10;
 
-	in_bindings[e_bi_cycle_next_weapon][0] = ScanCode::sc_e;
-	in_bindings[e_bi_cycle_next_weapon][1] = ScanCode::sc_mouse_wheel_up;
+    in_bindings[e_bi_weapon_1][0] = ScanCode::sc_1;
+    in_bindings[e_bi_weapon_2][0] = ScanCode::sc_2;
+    in_bindings[e_bi_weapon_3][0] = ScanCode::sc_3;
+    in_bindings[e_bi_weapon_4][0] = ScanCode::sc_4;
+    in_bindings[e_bi_weapon_5][0] = ScanCode::sc_5;
+    in_bindings[e_bi_weapon_6][0] = ScanCode::sc_6;
+    in_bindings[e_bi_weapon_7][0] = ScanCode::sc_back_quote;
 
-	in_bindings[e_bi_cycle_previous_weapon][0] = ScanCode::sc_q;
-	in_bindings[e_bi_cycle_previous_weapon][1] = ScanCode::sc_mouse_wheel_down;
+    in_bindings[e_bi_cycle_next_weapon][0] = ScanCode::sc_e;
+    in_bindings[e_bi_cycle_next_weapon][1] = ScanCode::sc_mouse_wheel_up;
+    in_bindings[e_bi_cycle_next_weapon][2] = ScanCode::sc_joy_axis5_down;
 
-	in_bindings[e_bi_use][0] = ScanCode::sc_space;
-	in_bindings[e_bi_use][1] = ScanCode::sc_mouse_right;
+    in_bindings[e_bi_cycle_previous_weapon][0] = ScanCode::sc_q;
+    in_bindings[e_bi_cycle_previous_weapon][1] = ScanCode::sc_mouse_wheel_down;
+    in_bindings[e_bi_cycle_previous_weapon][2] = ScanCode::sc_joy_axis4_down;
 
-	in_bindings[e_bi_stats][0] = ScanCode::sc_tab;
-	in_bindings[e_bi_radar_magnify][0] = ScanCode::sc_equals;
-	in_bindings[e_bi_radar_minify][0] = ScanCode::sc_minus;
+    in_bindings[e_bi_use][0] = ScanCode::sc_space;
+    in_bindings[e_bi_use][1] = ScanCode::sc_mouse_right;
+    in_bindings[e_bi_use][2] = ScanCode::sc_joy_btn0;
 
-	in_bindings[e_bi_help][0] = ScanCode::sc_f1;
-	in_bindings[e_bi_save][0] = ScanCode::sc_f2;
-	in_bindings[e_bi_load][0] = ScanCode::sc_f3;
-	in_bindings[e_bi_sound][0] = ScanCode::sc_f4;
-	in_bindings[e_bi_controls][0] = ScanCode::sc_f6;
-	in_bindings[e_bi_end_game][0] = ScanCode::sc_f7;
-	in_bindings[e_bi_quick_save][0] = ScanCode::sc_f8;
-	in_bindings[e_bi_quick_load][0] = ScanCode::sc_f9;
-	in_bindings[e_bi_quick_exit][0] = ScanCode::sc_f10;
+    in_bindings[e_bi_stats][0] = ScanCode::sc_tab;
+    in_bindings[e_bi_stats][2] = ScanCode::sc_joy_btn2;
 
-	in_bindings[e_bi_pause][0] = ScanCode::sc_p;
-	in_bindings[e_bi_pause][1] = ScanCode::sc_pause;
+    in_bindings[e_bi_radar_magnify][0] = ScanCode::sc_equals;
+    in_bindings[e_bi_radar_minify][0] = ScanCode::sc_minus;
 
-	in_bindings[e_bi_grab_mouse][0] = ScanCode::sc_u;
+    in_bindings[e_bi_help][0] = ScanCode::sc_f1;
+    in_bindings[e_bi_save][0] = ScanCode::sc_f2;
+    in_bindings[e_bi_load][0] = ScanCode::sc_f3;
+    in_bindings[e_bi_sound][0] = ScanCode::sc_f4;
+    in_bindings[e_bi_controls][0] = ScanCode::sc_f6;
+    in_bindings[e_bi_end_game][0] = ScanCode::sc_f7;
+    in_bindings[e_bi_quick_save][0] = ScanCode::sc_f8;
+    in_bindings[e_bi_quick_load][0] = ScanCode::sc_f9;
+    in_bindings[e_bi_quick_exit][0] = ScanCode::sc_f10;
 
-	// joypad bindings
-	in_bindings[e_bi_forward][2] = ScanCode::sc_joy_axis1_up;
-	in_bindings[e_bi_backward][2] = ScanCode::sc_joy_axis1_down;
-	in_bindings[e_bi_strafe_left][2] = ScanCode::sc_joy_axis0_up;
-	in_bindings[e_bi_strafe_right][2] = ScanCode::sc_joy_axis0_down;
-	in_bindings[e_bi_left][2] = ScanCode::sc_joy_axis3_up;
-	in_bindings[e_bi_right][2] = ScanCode::sc_joy_axis3_down;
+    in_bindings[e_bi_pause][0] = ScanCode::sc_p;
+    in_bindings[e_bi_pause][1] = ScanCode::sc_pause;
 
+    in_bindings[e_bi_grab_mouse][0] = ScanCode::sc_u;
 
+    // joypad bindings
+    in_bindings[e_bi_forward][2] = ScanCode::sc_joy_axis1_up;
+    in_bindings[e_bi_backward][2] = ScanCode::sc_joy_axis1_down;
+    in_bindings[e_bi_strafe_left][2] = ScanCode::sc_joy_axis0_up;
+    in_bindings[e_bi_strafe_right][2] = ScanCode::sc_joy_axis0_down;
+    in_bindings[e_bi_left][2] = ScanCode::sc_joy_axis3_up;
+    in_bindings[e_bi_right][2] = ScanCode::sc_joy_axis3_down;
 
-	for (int i = 0; i < k_max_joystick_axes; i++) {
-		in_joy_deadzone[i] = 2;
-		in_joy_sensitivity[i] = 10;
-	}
+	//joypad hat (d-pad) bindings
+	in_bindings[e_bi_forward][1] = ScanCode::sc_joy_btn11;
+    in_bindings[e_bi_backward][1] = ScanCode::sc_joy_btn12;
+    in_bindings[e_bi_strafe_left][1] = ScanCode::sc_joy_btn13;
+    in_bindings[e_bi_strafe_right][1] = ScanCode::sc_joy_btn14;
+
+    for (int i = 0; i < k_max_joystick_axes; i++) {
+        in_joy_deadzone[i] = 2;
+        in_joy_sensitivity[i] = 10;
+    }
 }
 
 bool in_is_binding_pressed(
