@@ -24,7 +24,10 @@ SPDX-License-Identifier: GPL-2.0-or-later
 //
 
 #include <cstring>
+#include <cmath>
+#include <algorithm>
 #include <iterator>
+#include "SDL.h"
 #include "id_ca.h"
 #include "id_heads.h"
 #include "id_in.h"
@@ -61,6 +64,25 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 bool MousePresent;
 bool NGinstalled = false;
+
+// Joystick variables
+int in_joy_deadzone[k_max_joystick_axes];
+int in_joy_sensitivity[k_max_joystick_axes];
+
+int JoyNumAxes = 0;
+int JoyNumButtons = 0;
+
+std::bitset<NumCodes> jstate;
+
+static SDL_GameController* GameController = nullptr;
+static SDL_Joystick* Joystick = nullptr;
+
+// Flip the right stick axes to match usual mapping of Joystick API.
+static SDL_GameControllerAxis GameControllerAxisMap[SDL_CONTROLLER_AXIS_MAX] = {
+	SDL_CONTROLLER_AXIS_LEFTX, SDL_CONTROLLER_AXIS_LEFTY, // X, Y
+	SDL_CONTROLLER_AXIS_RIGHTY, SDL_CONTROLLER_AXIS_RIGHTX, // Z, R
+	SDL_CONTROLLER_AXIS_TRIGGERLEFT, SDL_CONTROLLER_AXIS_TRIGGERRIGHT
+};
 
 // Global variables
 
@@ -862,6 +884,9 @@ void in_handle_events()
 	{
 		vid_schedule_take_screenshot();
 	}
+
+	// Poll joystick/gamepad buttons and axes
+	PollJoystickButton();
 }
 
 //
@@ -1154,6 +1179,268 @@ void in_set_mouse_sensitivity(int sensitivity)
 	in_mouse_sensitivity_cvar.set_int32(sensitivity);
 }
 
+// ======================================================================
+// Joystick/Gamepad support
+// ======================================================================
+
+void init_joystick_gamepad()
+{
+	int param_joystickindex = 0;
+	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == 0 &&
+		param_joystickindex >= 0 && param_joystickindex < SDL_NumJoysticks())
+	{
+		if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0 && SDL_IsGameController(param_joystickindex))
+		{
+			GameController = SDL_GameControllerOpen(param_joystickindex);
+			if (GameController)
+			{
+				SDL_GameControllerEventState(SDL_IGNORE);
+				JoyNumButtons = std::max(static_cast<int>(SDL_CONTROLLER_BUTTON_MAX), 21);
+				JoyNumAxes = std::max(static_cast<int>(SDL_CONTROLLER_AXIS_MAX), 6);
+			}
+		}
+		else
+		{
+			Joystick = SDL_JoystickOpen(param_joystickindex);
+			if (Joystick)
+			{
+				JoyNumButtons = SDL_JoystickNumButtons(Joystick);
+				if (JoyNumButtons > 32) JoyNumButtons = 32;
+				JoyNumAxes = SDL_JoystickNumAxes(Joystick);
+			}
+		}
+	}
+}
+
+int IN_JoyButtons(bool& bt_esc)
+{
+	if (GameController)
+	{
+		SDL_GameControllerUpdate();
+
+		int res = 0;
+		for (int i = 0; i < JoyNumButtons; ++i)
+		{
+			if (SDL_GameControllerGetButton(GameController, static_cast<SDL_GameControllerButton>(i)))
+			{
+				if (i == SDL_CONTROLLER_BUTTON_START)
+					bt_esc = true;
+				else
+					res |= 1 << i;
+			}
+		}
+		return res;
+	}
+
+	if (!Joystick) return 0;
+
+	int param_joystickhat = 0;
+	SDL_JoystickUpdate();
+	int res = 0;
+	int i = 0;
+
+	if (JoyNumButtons < 28)
+	{
+		uint8_t hatState = SDL_JoystickGetHat(Joystick, param_joystickhat);
+		if (hatState & SDL_HAT_UP)
+		{
+			res = 1 || (res << 1);
+			i += 1;
+		}
+		if (hatState & SDL_HAT_RIGHT)
+		{
+			res = 1 || (res << 1);
+			i += 1;
+		}
+		if (hatState & SDL_HAT_DOWN)
+		{
+			res = 1 || (res << 1);
+			i += 1;
+		}
+		if (hatState & SDL_HAT_LEFT)
+		{
+			res = 1 || (res << 1);
+			i += 1;
+		}
+	}
+
+	for (; i < JoyNumButtons && i < 32; i++)
+	{
+		res |= SDL_JoystickGetButton(Joystick, i) << i;
+	}
+
+	return res;
+}
+
+void IN_GetJoyDelta(int* dx, int* dy)
+{
+	if (!GameController && !Joystick)
+	{
+		*dx = *dy = 0;
+		return;
+	}
+
+	int param_joystickhat = 0;
+	int x, y;
+
+	if (GameController)
+	{
+		SDL_GameControllerUpdate();
+		x = SDL_GameControllerGetAxis(GameController, SDL_CONTROLLER_AXIS_LEFTX) >> 8;
+		y = SDL_GameControllerGetAxis(GameController, SDL_CONTROLLER_AXIS_LEFTY) >> 8;
+
+		if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT))
+			x += 127;
+		else if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT))
+			x -= 127;
+		if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_DOWN))
+			y += 127;
+		else if (SDL_GameControllerGetButton(GameController, SDL_CONTROLLER_BUTTON_DPAD_UP))
+			y -= 127;
+	}
+	else
+	{
+		SDL_JoystickUpdate();
+		x = SDL_JoystickGetAxis(Joystick, 0) >> 8;
+		y = SDL_JoystickGetAxis(Joystick, 1) >> 8;
+
+		if (param_joystickhat != -1)
+		{
+			uint8_t hatState = SDL_JoystickGetHat(Joystick, param_joystickhat);
+			if (hatState & SDL_HAT_RIGHT)
+				x += 127;
+			else if (hatState & SDL_HAT_LEFT)
+				x -= 127;
+			if (hatState & SDL_HAT_DOWN)
+				y += 127;
+			else if (hatState & SDL_HAT_UP)
+				y -= 127;
+		}
+	}
+
+	if (x < -128) x = -128;
+	else if (x > 127) x = 127;
+
+	if (y < -128) y = -128;
+	else if (y > 127) y = 127;
+
+	*dx = x;
+	*dy = y;
+}
+
+int IN_GetJoyAxis(int axis)
+{
+	if (GameController)
+		return SDL_GameControllerGetAxis(GameController, GameControllerAxisMap[axis]);
+	return SDL_JoystickGetAxis(Joystick, axis);
+}
+
+void UpdateRawJoystickAxis()
+{
+	// poll axes as buttons
+	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++)
+	{
+		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		jstate[axisnum] = rawaxis;
+	}
+}
+
+static bool check_is_movement_key(int key)
+{
+	if (key == static_cast<int>(ScanCode::sc_none))
+		return false;
+
+	int run_keys[] = { e_bi_forward, e_bi_backward, e_bi_left, e_bi_right, e_bi_strafe_left, e_bi_strafe_right };
+
+	for (int b = 0; b < 6; ++b)
+	{
+		for (int k = 0; k < k_max_binding_keys; ++k)
+		{
+			if (key == static_cast<int>(in_bindings[run_keys[b]][k]))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void PollJoystickButton()
+{
+	static std::bitset<NumCodes> local_jstate;
+
+	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++)
+	{
+		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		const int dzfactor = clamp<int>(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
+
+		for (int direction = 0; direction <= 1; direction++)
+		{
+			ScanCode i = static_cast<ScanCode>(static_cast<int>(ScanCode::sc_joy_axis0_up) + (axisnum * 2) + direction);
+
+			int axis = direction == 1 ? rawaxis : -rawaxis;
+			if (axis > dzfactor)
+			{
+				if (!local_jstate[static_cast<int>(i)])
+				{
+					LastScan = i;
+					if (!check_is_movement_key(static_cast<int>(i)))
+					{
+						Keyboard[static_cast<int>(i)] = true;
+					}
+				}
+				local_jstate[static_cast<int>(i)] = true;
+			}
+			else if (local_jstate[static_cast<int>(i)])
+			{
+				local_jstate[static_cast<int>(i)] = false;
+				if (!check_is_movement_key(static_cast<int>(i)))
+				{
+					Keyboard[static_cast<int>(i)] = false;
+				}
+			}
+		}
+	}
+
+	static bool prev_bt_esc = false;
+	bool bt_esc = false;
+	int buttons = IN_JoyButtons(bt_esc);
+
+	if (bt_esc && !prev_bt_esc)
+		Keyboard[ScanCode::sc_escape] = true;
+
+	if (prev_bt_esc && !bt_esc)
+		Keyboard[ScanCode::sc_escape] = false;
+
+	prev_bt_esc = bt_esc;
+	int btn_idx = 0;
+
+	while (btn_idx < JoyNumButtons)
+	{
+		if (buttons & 1)
+		{
+			if (!local_jstate[static_cast<int>(ScanCode::sc_joy_btn0) + btn_idx])
+			{
+				LastScan = static_cast<ScanCode>(static_cast<int>(ScanCode::sc_joy_btn0) + btn_idx);
+				Keyboard[static_cast<int>(ScanCode::sc_joy_btn0) + btn_idx] = true;
+			}
+			local_jstate[static_cast<int>(ScanCode::sc_joy_btn0) + btn_idx] = true;
+		}
+		else
+		{
+			if (local_jstate[static_cast<int>(ScanCode::sc_joy_btn0) + btn_idx])
+			{
+				Keyboard[static_cast<int>(ScanCode::sc_joy_btn0) + btn_idx] = false;
+			}
+			local_jstate[static_cast<int>(ScanCode::sc_joy_btn0) + btn_idx] = false;
+		}
+		buttons >>= 1;
+		btn_idx += 1;
+	}
+}
+
+// ======================================================================
+
 void IN_Startup()
 {
 	if (IN_Started)
@@ -1164,19 +1451,8 @@ void IN_Startup()
 	INL_StartKbd();
 	MousePresent = INL_StartMouse();
 
-// TODO
-#if 0
-#ifdef __vita__
-	// Vita joysticks are treated separately from other kinds of joystick
-	if (!SDL_WasInit(SDL_INIT_JOYSTICK))
-	{
-		SDL_Init(SDL_INIT_JOYSTICK);
-	}
-
-	SDL_JoystickOpen(0);
-	SDL_JoystickEventState(SDL_ENABLE);
-#endif
-#endif
+	// Initialize joystick/gamepad
+	init_joystick_gamepad();
 
 	bstone::globals::sys_event_mgr = &bstone::globals::sys_system_mgr->get_event_mgr();
 
@@ -1265,6 +1541,27 @@ void in_set_default_bindings()
 	in_bindings[e_bi_grab_mouse][0] = ScanCode::sc_u;
 
 	in_bindings[e_bi_take_screenshot][0] = ScanCode::sc_f5;
+
+	// Joystick default bindings
+	// Left stick for movement, right stick for turning
+	in_bindings[e_bi_forward][2] = ScanCode::sc_joy_axis1_up;
+	in_bindings[e_bi_backward][2] = ScanCode::sc_joy_axis1_down;
+	in_bindings[e_bi_strafe_left][2] = ScanCode::sc_joy_axis0_up;
+	in_bindings[e_bi_strafe_right][2] = ScanCode::sc_joy_axis0_down;
+	in_bindings[e_bi_left][2] = ScanCode::sc_joy_axis3_up;   // Right stick X-
+	in_bindings[e_bi_right][2] = ScanCode::sc_joy_axis3_down; // Right stick X+
+
+	// Joystick button bindings
+	in_bindings[e_bi_attack][2] = ScanCode::sc_joy_btn10;    // RB
+	in_bindings[e_bi_use][2] = ScanCode::sc_joy_btn0;        // A button
+	in_bindings[e_bi_stats][2] = ScanCode::sc_joy_btn4;      // Select/Back
+
+	// Set deadzone and sensitivity defaults
+	for (int i = 0; i < k_max_joystick_axes; i++)
+	{
+		in_joy_deadzone[i] = 2;
+		in_joy_sensitivity[i] = 10;
+	}
 }
 
 bool in_is_binding_pressed(BindingId binding_id)
@@ -1273,7 +1570,8 @@ bool in_is_binding_pressed(BindingId binding_id)
 
 	return
 		(binding[0] != ScanCode::sc_none && Keyboard[binding[0]]) ||
-		(binding[1] != ScanCode::sc_none && Keyboard[binding[1]]);
+		(binding[1] != ScanCode::sc_none && Keyboard[binding[1]]) ||
+		(binding[2] != ScanCode::sc_none && Keyboard[binding[2]]);
 }
 
 void in_reset_binding_state(BindingId binding_id)
@@ -1288,6 +1586,11 @@ void in_reset_binding_state(BindingId binding_id)
 	if (binding[1] != ScanCode::sc_none)
 	{
 		Keyboard[binding[1]] = false;
+	}
+
+	if (binding[2] != ScanCode::sc_none)
+	{
+		Keyboard[binding[2]] = false;
 	}
 }
 
@@ -1635,6 +1938,56 @@ constexpr auto in_mouse_x2_sv = bstone::StringView{"mouse_x2"};
 constexpr auto in_mouse_wheel_down_sv = bstone::StringView{"mouse_wheel_down"};
 constexpr auto in_mouse_wheel_up_sv = bstone::StringView{"mouse_wheel_up"};
 
+// Joystick axis names
+constexpr auto in_joy_axis0_up_sv = bstone::StringView{"joy_axis0_up"};
+constexpr auto in_joy_axis0_down_sv = bstone::StringView{"joy_axis0_down"};
+constexpr auto in_joy_axis1_up_sv = bstone::StringView{"joy_axis1_up"};
+constexpr auto in_joy_axis1_down_sv = bstone::StringView{"joy_axis1_down"};
+constexpr auto in_joy_axis2_up_sv = bstone::StringView{"joy_axis2_up"};
+constexpr auto in_joy_axis2_down_sv = bstone::StringView{"joy_axis2_down"};
+constexpr auto in_joy_axis3_up_sv = bstone::StringView{"joy_axis3_up"};
+constexpr auto in_joy_axis3_down_sv = bstone::StringView{"joy_axis3_down"};
+constexpr auto in_joy_axis4_up_sv = bstone::StringView{"joy_axis4_up"};
+constexpr auto in_joy_axis4_down_sv = bstone::StringView{"joy_axis4_down"};
+constexpr auto in_joy_axis5_up_sv = bstone::StringView{"joy_axis5_up"};
+constexpr auto in_joy_axis5_down_sv = bstone::StringView{"joy_axis5_down"};
+constexpr auto in_joy_axis6_up_sv = bstone::StringView{"joy_axis6_up"};
+constexpr auto in_joy_axis6_down_sv = bstone::StringView{"joy_axis6_down"};
+
+// Joystick button names
+constexpr auto in_joy_btn0_sv = bstone::StringView{"joy_btn0"};
+constexpr auto in_joy_btn1_sv = bstone::StringView{"joy_btn1"};
+constexpr auto in_joy_btn2_sv = bstone::StringView{"joy_btn2"};
+constexpr auto in_joy_btn3_sv = bstone::StringView{"joy_btn3"};
+constexpr auto in_joy_btn4_sv = bstone::StringView{"joy_btn4"};
+constexpr auto in_joy_btn5_sv = bstone::StringView{"joy_btn5"};
+constexpr auto in_joy_btn6_sv = bstone::StringView{"joy_btn6"};
+constexpr auto in_joy_btn7_sv = bstone::StringView{"joy_btn7"};
+constexpr auto in_joy_btn8_sv = bstone::StringView{"joy_btn8"};
+constexpr auto in_joy_btn9_sv = bstone::StringView{"joy_btn9"};
+constexpr auto in_joy_btn10_sv = bstone::StringView{"joy_btn10"};
+constexpr auto in_joy_btn11_sv = bstone::StringView{"joy_btn11"};
+constexpr auto in_joy_btn12_sv = bstone::StringView{"joy_btn12"};
+constexpr auto in_joy_btn13_sv = bstone::StringView{"joy_btn13"};
+constexpr auto in_joy_btn14_sv = bstone::StringView{"joy_btn14"};
+constexpr auto in_joy_btn15_sv = bstone::StringView{"joy_btn15"};
+constexpr auto in_joy_btn16_sv = bstone::StringView{"joy_btn16"};
+constexpr auto in_joy_btn17_sv = bstone::StringView{"joy_btn17"};
+constexpr auto in_joy_btn18_sv = bstone::StringView{"joy_btn18"};
+constexpr auto in_joy_btn19_sv = bstone::StringView{"joy_btn19"};
+constexpr auto in_joy_btn20_sv = bstone::StringView{"joy_btn20"};
+constexpr auto in_joy_btn21_sv = bstone::StringView{"joy_btn21"};
+constexpr auto in_joy_btn22_sv = bstone::StringView{"joy_btn22"};
+constexpr auto in_joy_btn23_sv = bstone::StringView{"joy_btn23"};
+constexpr auto in_joy_btn24_sv = bstone::StringView{"joy_btn24"};
+constexpr auto in_joy_btn25_sv = bstone::StringView{"joy_btn25"};
+constexpr auto in_joy_btn26_sv = bstone::StringView{"joy_btn26"};
+constexpr auto in_joy_btn27_sv = bstone::StringView{"joy_btn27"};
+constexpr auto in_joy_btn28_sv = bstone::StringView{"joy_btn28"};
+constexpr auto in_joy_btn29_sv = bstone::StringView{"joy_btn29"};
+constexpr auto in_joy_btn30_sv = bstone::StringView{"joy_btn30"};
+constexpr auto in_joy_btn31_sv = bstone::StringView{"joy_btn31"};
+
 struct InScanCodeNameToIdMapItem
 {
 	const bstone::StringView& name_sv;
@@ -1740,6 +2093,56 @@ constexpr InScanCodeNameToIdMapItem in_scan_code_name_to_id_map[] =
 
 	{in_mouse_wheel_down_sv, ScanCode::sc_mouse_wheel_down},
 	{in_mouse_wheel_up_sv, ScanCode::sc_mouse_wheel_up},
+
+	// Joystick axes
+	{in_joy_axis0_up_sv, ScanCode::sc_joy_axis0_up},
+	{in_joy_axis0_down_sv, ScanCode::sc_joy_axis0_down},
+	{in_joy_axis1_up_sv, ScanCode::sc_joy_axis1_up},
+	{in_joy_axis1_down_sv, ScanCode::sc_joy_axis1_down},
+	{in_joy_axis2_up_sv, ScanCode::sc_joy_axis2_up},
+	{in_joy_axis2_down_sv, ScanCode::sc_joy_axis2_down},
+	{in_joy_axis3_up_sv, ScanCode::sc_joy_axis3_up},
+	{in_joy_axis3_down_sv, ScanCode::sc_joy_axis3_down},
+	{in_joy_axis4_up_sv, ScanCode::sc_joy_axis4_up},
+	{in_joy_axis4_down_sv, ScanCode::sc_joy_axis4_down},
+	{in_joy_axis5_up_sv, ScanCode::sc_joy_axis5_up},
+	{in_joy_axis5_down_sv, ScanCode::sc_joy_axis5_down},
+	{in_joy_axis6_up_sv, ScanCode::sc_joy_axis6_up},
+	{in_joy_axis6_down_sv, ScanCode::sc_joy_axis6_down},
+
+	// Joystick buttons
+	{in_joy_btn0_sv, ScanCode::sc_joy_btn0},
+	{in_joy_btn1_sv, ScanCode::sc_joy_btn1},
+	{in_joy_btn2_sv, ScanCode::sc_joy_btn2},
+	{in_joy_btn3_sv, ScanCode::sc_joy_btn3},
+	{in_joy_btn4_sv, ScanCode::sc_joy_btn4},
+	{in_joy_btn5_sv, ScanCode::sc_joy_btn5},
+	{in_joy_btn6_sv, ScanCode::sc_joy_btn6},
+	{in_joy_btn7_sv, ScanCode::sc_joy_btn7},
+	{in_joy_btn8_sv, ScanCode::sc_joy_btn8},
+	{in_joy_btn9_sv, ScanCode::sc_joy_btn9},
+	{in_joy_btn10_sv, ScanCode::sc_joy_btn10},
+	{in_joy_btn11_sv, ScanCode::sc_joy_btn11},
+	{in_joy_btn12_sv, ScanCode::sc_joy_btn12},
+	{in_joy_btn13_sv, ScanCode::sc_joy_btn13},
+	{in_joy_btn14_sv, ScanCode::sc_joy_btn14},
+	{in_joy_btn15_sv, ScanCode::sc_joy_btn15},
+	{in_joy_btn16_sv, ScanCode::sc_joy_btn16},
+	{in_joy_btn17_sv, ScanCode::sc_joy_btn17},
+	{in_joy_btn18_sv, ScanCode::sc_joy_btn18},
+	{in_joy_btn19_sv, ScanCode::sc_joy_btn19},
+	{in_joy_btn20_sv, ScanCode::sc_joy_btn20},
+	{in_joy_btn21_sv, ScanCode::sc_joy_btn21},
+	{in_joy_btn22_sv, ScanCode::sc_joy_btn22},
+	{in_joy_btn23_sv, ScanCode::sc_joy_btn23},
+	{in_joy_btn24_sv, ScanCode::sc_joy_btn24},
+	{in_joy_btn25_sv, ScanCode::sc_joy_btn25},
+	{in_joy_btn26_sv, ScanCode::sc_joy_btn26},
+	{in_joy_btn27_sv, ScanCode::sc_joy_btn27},
+	{in_joy_btn28_sv, ScanCode::sc_joy_btn28},
+	{in_joy_btn29_sv, ScanCode::sc_joy_btn29},
+	{in_joy_btn30_sv, ScanCode::sc_joy_btn30},
+	{in_joy_btn31_sv, ScanCode::sc_joy_btn31},
 };
 
 ScanCode in_scan_code_name_to_id(bstone::StringView name_sv)

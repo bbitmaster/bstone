@@ -1084,6 +1084,56 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_mouse_wheel_down] = "MWHEEL DOWN";
 	binds_names[ScanCode::sc_mouse_wheel_up] = "MWHEEL UP";
 
+	// Joystick axis names
+	binds_names[ScanCode::sc_joy_axis0_up] = "JA0-";
+	binds_names[ScanCode::sc_joy_axis0_down] = "JA0+";
+	binds_names[ScanCode::sc_joy_axis1_up] = "JA1-";
+	binds_names[ScanCode::sc_joy_axis1_down] = "JA1+";
+	binds_names[ScanCode::sc_joy_axis2_up] = "JA2-";
+	binds_names[ScanCode::sc_joy_axis2_down] = "JA2+";
+	binds_names[ScanCode::sc_joy_axis3_up] = "JA3-";
+	binds_names[ScanCode::sc_joy_axis3_down] = "JA3+";
+	binds_names[ScanCode::sc_joy_axis4_up] = "JA4-";
+	binds_names[ScanCode::sc_joy_axis4_down] = "JA4+";
+	binds_names[ScanCode::sc_joy_axis5_up] = "JA5-";
+	binds_names[ScanCode::sc_joy_axis5_down] = "JA5+";
+	binds_names[ScanCode::sc_joy_axis6_up] = "JA6-";
+	binds_names[ScanCode::sc_joy_axis6_down] = "JA6+";
+
+	// Joystick button names
+	binds_names[ScanCode::sc_joy_btn0] = "JY00";
+	binds_names[ScanCode::sc_joy_btn1] = "JY01";
+	binds_names[ScanCode::sc_joy_btn2] = "JY02";
+	binds_names[ScanCode::sc_joy_btn3] = "JY03";
+	binds_names[ScanCode::sc_joy_btn4] = "JY04";
+	binds_names[ScanCode::sc_joy_btn5] = "JY05";
+	binds_names[ScanCode::sc_joy_btn6] = "JY06";
+	binds_names[ScanCode::sc_joy_btn7] = "JY07";
+	binds_names[ScanCode::sc_joy_btn8] = "JY08";
+	binds_names[ScanCode::sc_joy_btn9] = "JY09";
+	binds_names[ScanCode::sc_joy_btn10] = "JY10";
+	binds_names[ScanCode::sc_joy_btn11] = "JY11";
+	binds_names[ScanCode::sc_joy_btn12] = "JY12";
+	binds_names[ScanCode::sc_joy_btn13] = "JY13";
+	binds_names[ScanCode::sc_joy_btn14] = "JY14";
+	binds_names[ScanCode::sc_joy_btn15] = "JY15";
+	binds_names[ScanCode::sc_joy_btn16] = "JY16";
+	binds_names[ScanCode::sc_joy_btn17] = "JY17";
+	binds_names[ScanCode::sc_joy_btn18] = "JY18";
+	binds_names[ScanCode::sc_joy_btn19] = "JY19";
+	binds_names[ScanCode::sc_joy_btn20] = "JY20";
+	binds_names[ScanCode::sc_joy_btn21] = "JY21";
+	binds_names[ScanCode::sc_joy_btn22] = "JY22";
+	binds_names[ScanCode::sc_joy_btn23] = "JY23";
+	binds_names[ScanCode::sc_joy_btn24] = "JY24";
+	binds_names[ScanCode::sc_joy_btn25] = "JY25";
+	binds_names[ScanCode::sc_joy_btn26] = "JY26";
+	binds_names[ScanCode::sc_joy_btn27] = "JY27";
+	binds_names[ScanCode::sc_joy_btn28] = "JY28";
+	binds_names[ScanCode::sc_joy_btn29] = "JY29";
+	binds_names[ScanCode::sc_joy_btn30] = "JY30";
+	binds_names[ScanCode::sc_joy_btn31] = "JY31";
+
 	for (const auto& binds_name : binds_names)
 	{
 		int width = 0;
@@ -1408,6 +1458,7 @@ void binds_draw_menu()
 	binds_initialize_menu();
 
 	binds_is_assigning = false;
+	ControlInfo ci;
 
 	while (true)
 	{
@@ -1431,6 +1482,8 @@ void binds_draw_menu()
 			{
 				LastScan = ScanCode::sc_none;
 				in_handle_events();
+				// set escape from joypad start
+				ReadAnyControl(&ci);
 
 				if (Keyboard[ScanCode::sc_escape])
 				{
@@ -1458,7 +1511,8 @@ void binds_draw_menu()
 		}
 		else
 		{
-			if (Keyboard[ScanCode::sc_up_arrow])
+			ReadAnyControl(&ci);
+			if (ci.dir == dir_North)
 			{
 				if (!is_up_pressed)
 				{
@@ -1471,7 +1525,7 @@ void binds_draw_menu()
 				is_up_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_down_arrow])
+			if (ci.dir == dir_South)
 			{
 				if (!is_down_pressed)
 				{
@@ -1484,7 +1538,7 @@ void binds_draw_menu()
 				is_down_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_left_arrow])
+			if (ci.dir == dir_West)
 			{
 				if (!is_left_pressed)
 				{
@@ -1497,7 +1551,7 @@ void binds_draw_menu()
 				is_left_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_right_arrow])
+			if (ci.dir == dir_East)
 			{
 				if (!is_right_pressed)
 				{
@@ -1536,7 +1590,7 @@ void binds_draw_menu()
 				is_pgup_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_return])
+			if (Keyboard[ScanCode::sc_return] || ci.button0)
 			{
 				if (!is_enter_pressed)
 				{
@@ -1591,9 +1645,9 @@ void binds_draw_menu()
 			{
 				handle_left = false;
 
-				if (binds_key_index == 1)
+				if (binds_key_index > 0)
 				{
-					binds_key_index = 0;
+					binds_key_index -= 1;
 				}
 			}
 
@@ -1601,9 +1655,9 @@ void binds_draw_menu()
 			{
 				handle_right = false;
 
-				if (binds_key_index == 0)
+				if (binds_key_index < 2)
 				{
-					binds_key_index = 1;
+					binds_key_index += 1;
 				}
 			}
 
@@ -1642,6 +1696,7 @@ void binds_draw_menu()
 
 			if (handle_escape)
 			{
+				Keyboard[ScanCode::sc_escape] = false;
 				handle_escape = false;
 				menu_play_esc_pressed_sound();
 				break;
@@ -4291,6 +4346,34 @@ void ReadAnyControl(
 			ci->button3 = false;
 		}
 	}
+
+	// Joystick/Gamepad support for menu navigation
+	if (JoyNumAxes > 0) {
+		int jx, jy, jb;
+
+		IN_GetJoyDelta(&jx, &jy);
+		if (jy < -SENSITIVE)
+			ci->dir = dir_North;
+		else if (jy > SENSITIVE)
+			ci->dir = dir_South;
+
+		if (jx < -SENSITIVE)
+			ci->dir = dir_West;
+		else if (jx > SENSITIVE)
+			ci->dir = dir_East;
+		bool bt_esc = false;
+		jb = IN_JoyButtons(bt_esc);
+		// Note: Don't set Keyboard[sc_escape] here - PollJoystickButton handles
+		// escape with proper edge detection. Setting it here on every call
+		// conflicts with the edge detection and causes debouncing issues.
+		if (jb)
+		{
+			ci->button0 = !!(jb & 1);
+			ci->button1 = !!(jb & 2);
+			ci->button2 = !!(jb & 4);
+			ci->button3 = !!(jb & 8);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -4302,7 +4385,8 @@ std::int16_t Confirm(
 	const char* string)
 {
 	std::int16_t xit = 0, x, y, tick = 0, whichsnd[2] = {ESCPRESSEDSND, SHOOTSND};
-
+	ControlInfo ci;
+	bool joy_yes = false, joy_no = false;
 
 	Message(string);
 
@@ -4312,6 +4396,16 @@ std::int16_t Confirm(
 	CA_CacheGrChunk(STARTFONT + fontnumber);
 
 	IN_ClearKeysDown();
+
+	// Wait for all buttons to be released before accepting input
+	// This prevents held buttons from immediately triggering a response
+	do {
+		IN_CheckAck();
+		ReadAnyControl(&ci);
+	} while (ci.button0 || ci.button1 || ci.button2 || ci.button3);
+
+	// Clear escape key state that may have been set by Start button
+	Keyboard[ScanCode::sc_escape] = false;
 
 	//
 	// BLINK CURSOR
@@ -4342,10 +4436,16 @@ std::int16_t Confirm(
 
 		// BBi
 		IN_CheckAck();
-	} while (!Keyboard[ScanCode::sc_y] && !Keyboard[ScanCode::sc_n] && !Keyboard[ScanCode::sc_escape]);
+
+		// Joystick/gamepad support: A=Yes, B=No
+		ReadAnyControl(&ci);
+		joy_yes = ci.button0;
+		joy_no = ci.button1;
+	} while (!Keyboard[ScanCode::sc_y] && !Keyboard[ScanCode::sc_n] && !Keyboard[ScanCode::sc_escape] &&
+	         !joy_yes && !joy_no);
 
 
-	if (Keyboard[ScanCode::sc_y])
+	if (Keyboard[ScanCode::sc_y] || joy_yes)
 	{
 		xit = 1;
 		ShootSnd();
@@ -4355,6 +4455,13 @@ std::int16_t Confirm(
 	{
 		IN_CheckAck();
 	}
+
+	// Wait for joystick buttons to be released before returning
+	// This prevents the calling menu from immediately seeing a button press
+	do {
+		IN_CheckAck();
+		ReadAnyControl(&ci);
+	} while (ci.button0 || ci.button1 || ci.button2 || ci.button3);
 
 	IN_ClearKeysDown();
 	menu_play_sound(whichsnd[xit]);

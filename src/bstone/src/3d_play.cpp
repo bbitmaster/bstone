@@ -7,6 +7,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 
 #include <cstring>
+#include <cmath>
 
 #include "audio.h"
 #include "id_ca.h"
@@ -140,6 +141,7 @@ void RemoveObj(
 	objtype* gone);
 
 void PollControls();
+void PollJoystickMove();
 void StopMusic();
 
 void StartMusic(
@@ -479,8 +481,6 @@ void PollKeyboardMove()
 		controlx += value;
 	}
 
-	strafe_value = 0;
-
 	if (in_is_binding_pressed(e_bi_strafe))
 	{
 		if (in_is_binding_pressed(e_bi_left))
@@ -545,6 +545,73 @@ void PollMouseMove()
 	controly += static_cast<int>(delta_y);
 }
 
+void PollJoystickMove()
+{
+	int axisvalues[k_max_joystick_axes * 2];
+
+	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++)
+	{
+		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		const int dzfactor = clamp<int>(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
+		int axis = clamp(std::abs(rawaxis) + 1 - dzfactor, 0, 0x8000) * 5 * in_joy_sensitivity[axisnum] / (0x8000 - dzfactor);
+
+		for (int direction = 0; direction <= 1; direction++)
+		{
+			axisvalues[axisnum * 2 + direction] = 0;
+			// if pressing up, and direction is up, set up axis to move negative
+			if (rawaxis < 0 && direction == 0)
+			{
+				axisvalues[axisnum * 2 + direction] = axis;
+			}
+			if (rawaxis > 0 && direction == 1)
+			{
+				axisvalues[axisnum * 2 + direction] = axis;
+			}
+		}
+	}
+
+	int multiplier = tics;
+	if (in_is_binding_pressed(e_bi_run))
+	{
+		multiplier *= 2;
+	}
+
+	int axisnum;
+	for (int k = 0; k < k_max_binding_keys; ++k)
+	{
+		axisnum = static_cast<int>(in_bindings[e_bi_forward][k]) - static_cast<int>(ScanCode::sc_joy_axis0_up);
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2)
+		{
+			controly -= (axisvalues[axisnum] * multiplier);
+		}
+		axisnum = static_cast<int>(in_bindings[e_bi_backward][k]) - static_cast<int>(ScanCode::sc_joy_axis0_up);
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2)
+		{
+			controly += (axisvalues[axisnum] * multiplier);
+		}
+		axisnum = static_cast<int>(in_bindings[e_bi_left][k]) - static_cast<int>(ScanCode::sc_joy_axis0_up);
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2)
+		{
+			controlx -= (axisvalues[axisnum] * multiplier);
+		}
+		axisnum = static_cast<int>(in_bindings[e_bi_right][k]) - static_cast<int>(ScanCode::sc_joy_axis0_up);
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2)
+		{
+			controlx += (axisvalues[axisnum] * multiplier);
+		}
+		axisnum = static_cast<int>(in_bindings[e_bi_strafe_left][k]) - static_cast<int>(ScanCode::sc_joy_axis0_up);
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2 && axisvalues[axisnum] != 0)
+		{
+			strafe_value = -(axisvalues[axisnum] * multiplier);
+		}
+		axisnum = static_cast<int>(in_bindings[e_bi_strafe_right][k]) - static_cast<int>(ScanCode::sc_joy_axis0_up);
+		if (axisnum >= 0 && axisnum < k_max_joystick_axes * 2 && axisvalues[axisnum] != 0)
+		{
+			strafe_value = (axisvalues[axisnum] * multiplier);
+		}
+	}
+}
+
 /*
 ===================
 =
@@ -565,6 +632,7 @@ void PollControls()
 
 	controlx = 0;
 	controly = 0;
+	strafe_value = 0;
 	buttonheld = buttonstate;
 	buttonstate.reset();
 
@@ -627,6 +695,9 @@ void PollControls()
 	{
 		PollMouseMove();
 	}
+
+	// Poll joystick for analog movement
+	PollJoystickMove();
 
 	//
 	// bound movement to a maximum
