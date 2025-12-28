@@ -991,7 +991,7 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_space] = "SPACE";
 	binds_names[ScanCode::sc_minus] = "-";
 	binds_names[ScanCode::sc_equals] = "=";
-	binds_names[ScanCode::sc_backspace] = "BACKSPACE";
+	binds_names[ScanCode::sc_backspace] = "B_SPACE";
 	binds_names[ScanCode::sc_tab] = "TAB";
 	binds_names[ScanCode::sc_alt] = "ALT";
 	binds_names[ScanCode::sc_left_bracket] = "[";
@@ -999,7 +999,7 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_control] = "CTRL";
 	binds_names[ScanCode::sc_caps_lock] = "CAPS LOCK";
 	binds_names[ScanCode::sc_num_lock] = "NUM LOCK";
-	binds_names[ScanCode::sc_scroll_lock] = "SCROLL LOCK";
+	binds_names[ScanCode::sc_scroll_lock] = "SCRLL LCK";
 	binds_names[ScanCode::sc_left_shift] = "L-SHIFT";
 	binds_names[ScanCode::sc_right_shift] = "R-SHIFT";
 	binds_names[ScanCode::sc_up_arrow] = "UP";
@@ -1027,7 +1027,7 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_f12] = "F12";
 	binds_names[ScanCode::sc_print_screen] = "PRT SCR";
 	binds_names[ScanCode::sc_pause] = "PAUSE";
-	binds_names[ScanCode::sc_back_quote] = "BACK QUOTE";
+	binds_names[ScanCode::sc_back_quote] = "BCK_QOTE";
 	binds_names[ScanCode::sc_semicolon] = ";";
 	binds_names[ScanCode::sc_quote] = "'";
 	binds_names[ScanCode::sc_backslash] = "\\";
@@ -1072,8 +1072,8 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_y] = "Y";
 	binds_names[ScanCode::sc_z] = "Z";
 
-	binds_names[ScanCode::sc_kp_minus] = "KP MINUS";
-	binds_names[ScanCode::sc_kp_plus] = "KP PLUS";
+	binds_names[ScanCode::sc_kp_minus] = "KPMINUS";
+	binds_names[ScanCode::sc_kp_plus] = "KPPLUS";
 
 	binds_names[ScanCode::sc_mouse_left] = "MOUSE 1";
 	binds_names[ScanCode::sc_mouse_middle] = "MOUSE 2";
@@ -1081,8 +1081,8 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_mouse_x1] = "MOUSE 4";
 	binds_names[ScanCode::sc_mouse_x2] = "MOUSE 5";
 
-	binds_names[ScanCode::sc_mouse_wheel_down] = "MWHEEL DOWN";
-	binds_names[ScanCode::sc_mouse_wheel_up] = "MWHEEL UP";
+	binds_names[ScanCode::sc_mouse_wheel_down] = "WHL_DOWN";
+	binds_names[ScanCode::sc_mouse_wheel_up] = "WHL_UP";
 
 	// Joystick axis names
 	binds_names[ScanCode::sc_joy_axis0_up] = "JA0-";
@@ -1149,6 +1149,26 @@ void binds_initialize_menu()
 	int max_keys_width = k_max_binding_keys * (binds_key_width + 1);
 	int max_text_width = 2 + binds_max_text_width;
 	int max_width = max_keys_width + k_binds_text_keys_gap + max_text_width;
+
+	if (max_width > SCREEN_W)
+	{
+		const int available_width = SCREEN_W - k_binds_text_keys_gap;
+
+		if (max_keys_width > available_width)
+		{
+			binds_key_width = std::max(0, (available_width / k_max_binding_keys) - 1);
+			max_keys_width = k_max_binding_keys * (binds_key_width + 1);
+		}
+
+		const int max_text_width_allowed = available_width - max_keys_width;
+		if (max_text_width > max_text_width_allowed)
+		{
+			binds_max_text_width = std::max(0, max_text_width_allowed - 2);
+			max_text_width = 2 + binds_max_text_width;
+		}
+
+		max_width = max_keys_width + k_binds_text_keys_gap + max_text_width;
+	}
 
 	int text_x = (SCREEN_W - max_width) / 2;
 
@@ -3843,6 +3863,8 @@ std::int16_t HandleMenu(
 
 	std::int16_t i, x, y, basey, exit, which, flash_tics;
 	ControlInfo ci;
+	bool is_west_pressed = false;
+	bool is_east_pressed = false;
 
 	which = item_i->curpos;
 	x = item_i->x;
@@ -4040,11 +4062,13 @@ std::int16_t HandleMenu(
 			{
 				auto carousel_func = items[which].carousel_func_;
 
-				if (carousel_func)
+				if (carousel_func && !is_west_pressed)
 				{
 					carousel_func(which, true, false);
 				}
 
+				is_west_pressed = true;
+				is_east_pressed = false;
 				break;
 			}
 
@@ -4054,15 +4078,19 @@ std::int16_t HandleMenu(
 			{
 				auto carousel_func = items[which].carousel_func_;
 
-				if (carousel_func)
+				if (carousel_func && !is_east_pressed)
 				{
 					carousel_func(which, false, true);
 				}
 
+				is_east_pressed = true;
+				is_west_pressed = false;
 				break;
 			}
 
 		default:
+			is_west_pressed = false;
+			is_east_pressed = false;
 			break;
 		}
 

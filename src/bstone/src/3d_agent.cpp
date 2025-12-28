@@ -616,7 +616,7 @@ void ControlMovement(
 
 		const auto angle_delta = 90 - static_cast<int>(bstone::math::rad_to_deg(std::atan2(y, x)));
 		const auto angle = clamp_angle(ob->angle + angle_delta);
-		const auto value = std::abs(y);
+		const auto value = std::sqrt(static_cast<double>(x) * x + static_cast<double>(y) * y);
 
 		Thrust(static_cast<std::int16_t>(angle), value);
 	}
