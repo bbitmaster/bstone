@@ -446,10 +446,16 @@ sys::Window& GlR3rImpl::do_get_window() const noexcept
 
 void GlR3rImpl::do_handle_resize(sys::WindowSize new_size)
 try {
-	const auto size_changed = screen_width_ != new_size.width || screen_height_ != new_size.height;
+	// Use actual drawable size, which may differ from window size on high-DPI displays.
+	// This is especially important on Emscripten where device pixel ratio affects canvas buffer size.
+	const auto drawable_size = window_->gl_get_drawable_size();
+	const auto actual_width = drawable_size.width > 0 ? drawable_size.width : new_size.width;
+	const auto actual_height = drawable_size.height > 0 ? drawable_size.height : new_size.height;
 
-	screen_width_ = new_size.width;
-	screen_height_ = new_size.height;
+	const auto size_changed = screen_width_ != actual_width || screen_height_ != actual_height;
+
+	screen_width_ = actual_width;
+	screen_height_ = actual_height;
 
 	if (size_changed && gl_device_features_.is_framebuffer_available)
 	{
@@ -1181,7 +1187,8 @@ try {
 		BSTONE_THROW_STATIC_SOURCE("Null variable.");
 	}
 
-	command.var->set_mat4(command.value.data());
+	alignas(16) auto aligned_value = command.value;
+	command.var->set_mat4(aligned_value.data());
 } BSTONE_END_FUNC_CATCH_ALL_THROW_NESTED
 
 void GlR3rImpl::submit_set_sampler_2d_uniform(const R3rSetR2SamplerUniformCmd& command)

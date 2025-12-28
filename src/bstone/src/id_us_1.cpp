@@ -41,6 +41,10 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include <iterator>
 #include <tuple>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "id_heads.h"
 #include "id_in.h"
 #include "id_sd.h"
@@ -569,6 +573,11 @@ bool US_LineInput(
 		}
 
 		VW_UpdateScreen();
+
+#ifdef __EMSCRIPTEN__
+		// Yield to browser to prevent UI freeze
+		emscripten_sleep(0);
+#endif
 	}
 
 	if (cursorvis)

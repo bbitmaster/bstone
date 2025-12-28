@@ -71,12 +71,15 @@ enum class WindowEventType
 	none,
 	keyboard_focus_gained,
 	keyboard_focus_lost,
+	resized,
 };
 
 struct WindowEvent : CommonEvent
 {
 	WindowEventType event_type;
 	unsigned int id;
+	int width;
+	int height;
 };
 
 union Event

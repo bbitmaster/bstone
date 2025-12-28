@@ -35,6 +35,14 @@ option(BSTONE_NO_ASSERT "Disable assertion." OFF)
 option(BSTONE_VULKAN_COMPILE_SHADERS "Compile Vulkan shaders before each build. Requires Vulkan SDK or 'glslangValidator' application available in the PATH environment variable. Useful for development." OFF)
 option(BSTONE_VULKAN_COMPILE_SHADERS_DEBUG_BUILD "Compile Vulkan shaders with debug information and without link time optimization." OFF)
 
+if (EMSCRIPTEN)
+	option(BSTONE_EMSCRIPTEN_ASYNCIFY "Enable Asyncify to allow emscripten_sleep yields." ON)
+	option(BSTONE_EMSCRIPTEN_ASSERTIONS "Enable Emscripten JS assertions." OFF)
+	option(BSTONE_EMSCRIPTEN_EXCEPTION_CATCHING "Enable Emscripten exception catching." ON)
+	set(BSTONE_EMSCRIPTEN_PRELOAD_DIR "" CACHE PATH "Path to game assets to preload.")
+	set(BSTONE_EMSCRIPTEN_PRELOAD_MOUNT "/data" CACHE STRING "Virtual mount path for preloaded assets.")
+endif ()
+
 # SDL2W
 #
 set(BSTONE_SDL_COMPONENTS "")
@@ -123,11 +131,13 @@ if(BSTONE_VULKAN_COMPILE_SHADERS)
 	add_dependencies(bstone bstone_vulkan_compile_shaders)
 endif()
 
-add_custom_command(
-	TARGET bstone POST_BUILD
-	COMMAND $<$<CONFIG:RELEASE>:${CMAKE_STRIP}> $<$<CONFIG:RELEASE>:$<TARGET_FILE:bstone>>
-	VERBATIM
-)
+if (NOT EMSCRIPTEN)
+	add_custom_command(
+		TARGET bstone POST_BUILD
+		COMMAND $<$<CONFIG:RELEASE>:${CMAKE_STRIP}> $<$<CONFIG:RELEASE>:$<TARGET_FILE:bstone>>
+		VERBATIM
+	)
+endif ()
 
 if (BSTONE_TRIM_FILE_PATHS_IN_EXE)
 	add_dependencies(bstone bstone_ltrimcs)
@@ -157,6 +167,14 @@ if (WIN32)
 	)
 endif ()
 
+if (EMSCRIPTEN)
+	configure_file(
+		"${PROJECT_SOURCE_DIR}/src/resources/emscripten/bstone.html.in"
+		"${PROJECT_BINARY_DIR}/bstone.html"
+		@ONLY
+	)
+endif ()
+
 #
 # Target properties.
 #
@@ -170,6 +188,30 @@ if (WIN32)
 	set_target_properties(bstone PROPERTIES
 		WIN32_EXECUTABLE TRUE
 	)
+endif ()
+
+if (EMSCRIPTEN)
+	target_compile_options(bstone PRIVATE -fexceptions)
+
+	# Allow memory to grow for high resolution support (up to 1GB).
+	set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS " -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=1gb")
+
+	if (BSTONE_EMSCRIPTEN_ASYNCIFY)
+		set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS " -sASYNCIFY")
+	endif ()
+
+	if (BSTONE_EMSCRIPTEN_ASSERTIONS)
+		set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS " -sASSERTIONS=1 -sGL_ASSERTIONS=1")
+	endif ()
+
+	if (BSTONE_EMSCRIPTEN_EXCEPTION_CATCHING)
+		set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS " -sNO_DISABLE_EXCEPTION_CATCHING")
+	endif ()
+
+	if (BSTONE_EMSCRIPTEN_PRELOAD_DIR)
+		set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS
+			" --preload-file ${BSTONE_EMSCRIPTEN_PRELOAD_DIR}@${BSTONE_EMSCRIPTEN_PRELOAD_MOUNT}")
+	endif ()
 endif ()
 
 #
@@ -274,10 +316,22 @@ target_link_libraries(bstone
 		Threads::Threads
 		bstone::lib::khronos
 		bstone::lib::nuked_opl3
-		bstone::lib::openal_soft
 		bstone::lib::stb
 		bstone::lib::xbrz
-		bstone::vulkan
+)
+
+if (BSTONE_ENABLE_OPENAL)
+	target_link_libraries(bstone PRIVATE bstone::lib::openal_soft)
+endif ()
+
+if (BSTONE_ENABLE_VULKAN)
+	target_link_libraries(bstone PRIVATE bstone::vulkan)
+endif ()
+
+target_compile_definitions(bstone
+	PRIVATE
+		$<$<BOOL:${BSTONE_ENABLE_VULKAN}>:BSTONE_ENABLE_VULKAN>
+		$<$<BOOL:${BSTONE_ENABLE_OPENAL}>:BSTONE_ENABLE_OPENAL>
 )
 
 if (BSTONE_PANDORA)
@@ -656,53 +710,55 @@ source_group("bstone/renderer/3d/gl" FILES ${BSTONE_BSTONE_RENDERER_3D_GL_SOURCE
 
 # ---------------------------------------------------------------------------
 
-set(BSTONE_BSTONE_RENDERER_3D_VK_SOURCES
-	src/bstone_vk_r3r.cpp
-	src/bstone_vk_r3r.h
-	src/bstone_vk_r3r_buffer.cpp
-	src/bstone_vk_r3r_buffer.h
-	src/bstone_vk_r3r_context.cpp
-	src/bstone_vk_r3r_context.h
-	src/bstone_vk_r3r_enum_strings.cpp
-	src/bstone_vk_r3r_enum_strings.h
-	src/bstone_vk_r3r_array_extractor.cpp
-	src/bstone_vk_r3r_array_extractor.h
-	src/bstone_vk_r3r_info.cpp
-	src/bstone_vk_r3r_info.h
-	src/bstone_vk_r3r_observer.cpp
-	src/bstone_vk_r3r_observer.h
-	src/bstone_vk_r3r_pipeline.cpp
-	src/bstone_vk_r3r_pipeline.h
-	src/bstone_vk_r3r_pipeline_mgr.cpp
-	src/bstone_vk_r3r_pipeline_mgr.h
-	src/bstone_vk_r3r_r2_texture.cpp
-	src/bstone_vk_r3r_r2_texture.h
-	src/bstone_vk_r3r_raii.cpp
-	src/bstone_vk_r3r_raii.h
-	src/bstone_vk_r3r_sampler.cpp
-	src/bstone_vk_r3r_sampler.h
-	src/bstone_vk_r3r_shader.cpp
-	src/bstone_vk_r3r_shader.h
-	src/bstone_vk_r3r_shader_stage.cpp
-	src/bstone_vk_r3r_shader_stage.h
-	src/bstone_vk_r3r_shader_var.cpp
-	src/bstone_vk_r3r_shader_var.h
-	src/bstone_vk_r3r_vertex_input.cpp
-	src/bstone_vk_r3r_vertex_input.h
-)
+if (BSTONE_ENABLE_VULKAN)
+	set(BSTONE_BSTONE_RENDERER_3D_VK_SOURCES
+		src/bstone_vk_r3r.cpp
+		src/bstone_vk_r3r.h
+		src/bstone_vk_r3r_buffer.cpp
+		src/bstone_vk_r3r_buffer.h
+		src/bstone_vk_r3r_context.cpp
+		src/bstone_vk_r3r_context.h
+		src/bstone_vk_r3r_enum_strings.cpp
+		src/bstone_vk_r3r_enum_strings.h
+		src/bstone_vk_r3r_array_extractor.cpp
+		src/bstone_vk_r3r_array_extractor.h
+		src/bstone_vk_r3r_info.cpp
+		src/bstone_vk_r3r_info.h
+		src/bstone_vk_r3r_observer.cpp
+		src/bstone_vk_r3r_observer.h
+		src/bstone_vk_r3r_pipeline.cpp
+		src/bstone_vk_r3r_pipeline.h
+		src/bstone_vk_r3r_pipeline_mgr.cpp
+		src/bstone_vk_r3r_pipeline_mgr.h
+		src/bstone_vk_r3r_r2_texture.cpp
+		src/bstone_vk_r3r_r2_texture.h
+		src/bstone_vk_r3r_raii.cpp
+		src/bstone_vk_r3r_raii.h
+		src/bstone_vk_r3r_sampler.cpp
+		src/bstone_vk_r3r_sampler.h
+		src/bstone_vk_r3r_shader.cpp
+		src/bstone_vk_r3r_shader.h
+		src/bstone_vk_r3r_shader_stage.cpp
+		src/bstone_vk_r3r_shader_stage.h
+		src/bstone_vk_r3r_shader_var.cpp
+		src/bstone_vk_r3r_shader_var.h
+		src/bstone_vk_r3r_vertex_input.cpp
+		src/bstone_vk_r3r_vertex_input.h
+	)
 
-target_sources(bstone PRIVATE ${BSTONE_BSTONE_RENDERER_3D_VK_SOURCES})
-source_group("bstone/renderer/3d/vk" FILES ${BSTONE_BSTONE_RENDERER_3D_VK_SOURCES})
+	target_sources(bstone PRIVATE ${BSTONE_BSTONE_RENDERER_3D_VK_SOURCES})
+	source_group("bstone/renderer/3d/vk" FILES ${BSTONE_BSTONE_RENDERER_3D_VK_SOURCES})
 
-# ---------------------------------------------------------------------------
+	# ---------------------------------------------------------------------------
 
-set(BSTONE_BSTONE_RENDERER_3D_VK_SHADER_SOURCES
-	src/resources/vulkan/src/default_frag.txt
-	src/resources/vulkan/src/default_vert.txt
-)
+	set(BSTONE_BSTONE_RENDERER_3D_VK_SHADER_SOURCES
+		src/resources/vulkan/src/default_frag.txt
+		src/resources/vulkan/src/default_vert.txt
+	)
 
-target_sources(bstone PRIVATE ${BSTONE_BSTONE_RENDERER_3D_VK_SHADER_SOURCES})
-source_group("bstone/renderer/3d/vk/shaders" FILES ${BSTONE_BSTONE_RENDERER_3D_VK_SHADER_SOURCES})
+	target_sources(bstone PRIVATE ${BSTONE_BSTONE_RENDERER_3D_VK_SHADER_SOURCES})
+	source_group("bstone/renderer/3d/vk/shaders" FILES ${BSTONE_BSTONE_RENDERER_3D_VK_SHADER_SOURCES})
+endif ()
 
 # ---------------------------------------------------------------------------
 
@@ -810,14 +866,19 @@ set(BSTONE_BSTONE_SYS_SDL2_SOURCES
 	src/bstone_sys_texture_sdl2.h
 	src/bstone_sys_video_mgr_sdl2.cpp
 	src/bstone_sys_video_mgr_sdl2.h
-	src/bstone_sys_vulkan_mgr_sdl2.cpp
-	src/bstone_sys_vulkan_mgr_sdl2.h
 	src/bstone_sys_window_mgr_sdl2.cpp
 	src/bstone_sys_window_mgr_sdl2.h
 	src/bstone_sys_window_rounded_corner_mgr_sdl2.cpp
 	src/bstone_sys_window_sdl2.cpp
 	src/bstone_sys_window_sdl2.h
 )
+
+if (BSTONE_ENABLE_VULKAN)
+	list(APPEND BSTONE_BSTONE_SYS_SDL2_SOURCES
+		src/bstone_sys_vulkan_mgr_sdl2.cpp
+		src/bstone_sys_vulkan_mgr_sdl2.h
+	)
+endif ()
 
 target_sources(bstone PRIVATE ${BSTONE_BSTONE_SYS_SDL2_SOURCES})
 source_group("bstone/sys/sdl2" FILES ${BSTONE_BSTONE_SYS_SDL2_SOURCES})
@@ -880,21 +941,23 @@ source_group("bstone/audio/opl" FILES ${BSTONE_BSTONE_AUDIO_SOURCES})
 
 # ---------------------------------------------------------------------------
 
-set(BSTONE_BSTONE_AUDIO_SOURCES
-	src/bstone_oal_audio_mixer.cpp
-	src/bstone_oal_audio_mixer.h
-	src/bstone_oal_loader.cpp
-	src/bstone_oal_loader.h
-	src/bstone_oal_resource.cpp
-	src/bstone_oal_resource.h
-	src/bstone_oal_source.cpp
-	src/bstone_oal_source.h
-	src/bstone_oal_symbols.cpp
-	src/bstone_oal_symbols.h
-)
+if (BSTONE_ENABLE_OPENAL)
+	set(BSTONE_BSTONE_AUDIO_SOURCES
+		src/bstone_oal_audio_mixer.cpp
+		src/bstone_oal_audio_mixer.h
+		src/bstone_oal_loader.cpp
+		src/bstone_oal_loader.h
+		src/bstone_oal_resource.cpp
+		src/bstone_oal_resource.h
+		src/bstone_oal_source.cpp
+		src/bstone_oal_source.h
+		src/bstone_oal_symbols.cpp
+		src/bstone_oal_symbols.h
+	)
 
-target_sources(bstone PRIVATE ${BSTONE_BSTONE_AUDIO_SOURCES})
-source_group("bstone/audio/openal" FILES ${BSTONE_BSTONE_AUDIO_SOURCES})
+	target_sources(bstone PRIVATE ${BSTONE_BSTONE_AUDIO_SOURCES})
+	source_group("bstone/audio/openal" FILES ${BSTONE_BSTONE_AUDIO_SOURCES})
+endif ()
 
 # ---------------------------------------------------------------------------
 

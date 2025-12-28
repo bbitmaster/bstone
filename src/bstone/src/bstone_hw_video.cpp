@@ -1776,6 +1776,16 @@ void HwVideo::apply_window_mode()
 try {
 	sys::Window& window = renderer_->get_window();
 
+#ifdef __EMSCRIPTEN__
+	// On Emscripten, use the actual drawable size for all calculations.
+	// This accounts for device pixel ratio (high-DPI displays).
+	const auto drawable_size = window.gl_get_drawable_size();
+	if (drawable_size.width > 0 && drawable_size.height > 0)
+	{
+		vid_cfg_set_width(drawable_size.width);
+		vid_cfg_set_height(drawable_size.height);
+	}
+#else
 	R3rUtilsSetWindowModeParam param{};
 	param.is_positioned = vid_cfg_is_positioned();
 	param.position.x = sys::WindowOffset{vid_cfg_get_x()};
@@ -1793,6 +1803,7 @@ try {
 		vid_cfg_set_height(window_display_mode.height);
 		vid_cfg_set_refresh_rate(window_display_mode.refresh_rate);
 	}
+#endif
 
 	calculate_dimensions();
 	vid_initialize_vanilla_raycaster();
@@ -2941,7 +2952,9 @@ try {
 		case RendererType::gl_2_0: return R3rType::gl_2_0;
 		case RendererType::gl_3_2_core: return R3rType::gl_3_2_core;
 		case RendererType::gles_2_0: return R3rType::gles_2_0;
+#ifdef BSTONE_ENABLE_VULKAN
 		case RendererType::vulkan: return R3rType::vulkan;
+#endif
 		default: BSTONE_THROW_STATIC_SOURCE("Unsupported renderer type.");
 	}
 } BSTONE_END_FUNC_CATCH_ALL_THROW_NESTED
@@ -2993,7 +3006,9 @@ try {
 	{
 		renderer_type_list =
 		{
+#ifdef BSTONE_ENABLE_VULKAN
 			R3rType::vulkan,
+#endif
 #ifndef BSTONE_R3R_TEST_NO_GL
 #ifndef BSTONE_R3R_TEST_NO_GL_3_2_C
 			R3rType::gl_3_2_core,

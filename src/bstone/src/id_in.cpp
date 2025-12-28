@@ -27,6 +27,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include <cmath>
 #include <algorithm>
 #include <iterator>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "SDL.h"
 #include "id_ca.h"
 #include "id_heads.h"
@@ -814,6 +817,14 @@ void in_handle_window(const bstone::sys::WindowEvent& e)
 			sd_mute(true);
 			break;
 
+#ifdef __EMSCRIPTEN__
+		case bstone::sys::WindowEventType::resized:
+			// Handle browser window resize by reapplying window mode.
+			// vid_apply_window_mode() will query the actual drawable size.
+			vid_apply_window_mode();
+			break;
+#endif
+
 		default: break;
 	}
 
@@ -1124,6 +1135,9 @@ void IN_Ack()
 
 	while (!IN_CheckAck())
 	{
+#ifdef __EMSCRIPTEN__
+		emscripten_sleep(0);
+#endif
 	}
 }
 
@@ -1332,7 +1346,9 @@ int IN_GetJoyAxis(int axis)
 {
 	if (GameController)
 		return SDL_GameControllerGetAxis(GameController, GameControllerAxisMap[axis]);
-	return SDL_JoystickGetAxis(Joystick, axis);
+	if (Joystick)
+		return SDL_JoystickGetAxis(Joystick, axis);
+	return 0;
 }
 
 void UpdateRawJoystickAxis()

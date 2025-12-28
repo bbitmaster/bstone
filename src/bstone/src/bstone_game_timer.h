@@ -10,7 +10,9 @@ SPDX-License-Identifier: MIT
 #include <cstdint>
 
 #include <chrono>
+#ifndef __EMSCRIPTEN__
 #include <thread>
+#endif
 
 #include "bstone_atomic_flag.h"
 
@@ -47,12 +49,20 @@ private:
 	using Clock = std::chrono::steady_clock;
 	using ClockTicks = Clock::duration::rep;
 	using MtTicks = std::atomic<GameTimerTicks>;
+#ifndef __EMSCRIPTEN__
 	using Thread = std::thread;
+#endif
 
 private:
 	AtomicFlag mt_is_cancellation_requested_{};
 	MtTicks mt_ticks_{};
+#ifndef __EMSCRIPTEN__
 	Thread thread_{};
+#else
+	bool is_started_{};
+	int frequency_{};
+	double start_time_ms_{};
+#endif
 
 private:
 	void ensure_is_started() const;

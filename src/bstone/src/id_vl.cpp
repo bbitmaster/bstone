@@ -67,6 +67,12 @@ constexpr auto vid_renderer_cvar_gl_3_2_c = bstone::StringView{"gl_3_2_c"};
 constexpr auto vid_renderer_cvar_gles_2_0 = bstone::StringView{"gles_2_0"};
 constexpr auto vid_renderer_cvar_vulkan = bstone::StringView{"vulkan"};
 
+#ifdef __EMSCRIPTEN__
+constexpr auto vid_renderer_cvar_default = vid_renderer_cvar_gles_2_0;
+#else
+constexpr auto vid_renderer_cvar_default = vid_renderer_cvar_auto_detect;
+#endif
+
 constexpr bstone::StringView vid_renderer_cvar_values[] =
 {
 	vid_renderer_cvar_auto_detect,
@@ -84,7 +90,7 @@ auto vid_renderer_cvar = bstone::CVar{
 	bstone::CVarStringTag{},
 	vid_renderer_cvar_name,
 	bstone::CVarFlags::archive,
-	vid_renderer_cvar_auto_detect,
+	vid_renderer_cvar_default,
 	bstone::make_span(vid_renderer_cvar_values)};
 
 // vid_is_positioned
@@ -1074,9 +1080,11 @@ try {
 			renderer_type_sv = "OpenGL ES 2.0";
 			break;
 
+#ifdef BSTONE_ENABLE_VULKAN
 		case bstone::RendererType::vulkan:
 			renderer_type_sv = "Vulkan";
 			break;
+#endif
 
 		default:
 			BSTONE_THROW_STATIC_SOURCE("Unsupported renderer type.");
@@ -1095,7 +1103,9 @@ try {
 		case bstone::R3rType::gl_2_0: return "OpenGL 2.0";
 		case bstone::R3rType::gl_3_2_core: return "OpenGL 3.2 core";
 		case bstone::R3rType::gles_2_0: return "OpenGL ES 2.0";
+#ifdef BSTONE_ENABLE_VULKAN
 		case bstone::R3rType::vulkan: return "Vulkan";
+#endif
 		default: BSTONE_THROW_STATIC_SOURCE("Unsupported renderer type.");
 	}
 } BSTONE_END_FUNC_CATCH_ALL_THROW_NESTED
@@ -1804,10 +1814,12 @@ bstone::RendererType vid_cfg_get_renderer_type() noexcept
 		return bstone::RendererType::gles_2_0;
 	}
 
+#ifdef BSTONE_ENABLE_VULKAN
 	if (renderer_sv == vid_renderer_cvar_vulkan)
 	{
 		return bstone::RendererType::vulkan;
 	}
+#endif
 
 	return bstone::RendererType::auto_detect;
 }
@@ -1839,9 +1851,11 @@ void vid_cfg_set_renderer_type(bstone::RendererType renderer_type)
 			renderer_sv = vid_renderer_cvar_gles_2_0;
 			break;
 
+#ifdef BSTONE_ENABLE_VULKAN
 		case bstone::RendererType::vulkan:
 			renderer_sv = vid_renderer_cvar_vulkan;
 			break;
+#endif
 
 		default:
 			renderer_sv = vid_renderer_cvar_auto_detect;
@@ -2228,10 +2242,12 @@ const VidRendererTypes& vid_get_available_renderer_types()
 #endif
 		bstone::RendererType::software,
 
-		bstone::RendererType::gl_2_0,
-		bstone::RendererType::gl_3_2_core,
-		bstone::RendererType::gles_2_0,
-		bstone::RendererType::vulkan,
+	bstone::RendererType::gl_2_0,
+	bstone::RendererType::gl_3_2_core,
+	bstone::RendererType::gles_2_0,
+#ifdef BSTONE_ENABLE_VULKAN
+	bstone::RendererType::vulkan,
+#endif
 	};
 
 	return result;

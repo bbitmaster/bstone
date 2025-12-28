@@ -400,6 +400,8 @@ bool Sdl2EventMgr::handle_event(const SDL_WindowEvent& sdl_e, WindowEvent& e) no
 {
 	auto is_handled = true;
 	e.id = sdl_e.windowID;
+	e.width = 0;
+	e.height = 0;
 
 	switch (sdl_e.event)
 	{
@@ -409,6 +411,13 @@ bool Sdl2EventMgr::handle_event(const SDL_WindowEvent& sdl_e, WindowEvent& e) no
 
 		case SDL_WINDOWEVENT_FOCUS_LOST:
 			e.event_type = WindowEventType::keyboard_focus_lost;
+			break;
+
+		case SDL_WINDOWEVENT_RESIZED:
+		case SDL_WINDOWEVENT_SIZE_CHANGED:
+			e.event_type = WindowEventType::resized;
+			e.width = sdl_e.data1;
+			e.height = sdl_e.data2;
 			break;
 
 		default:

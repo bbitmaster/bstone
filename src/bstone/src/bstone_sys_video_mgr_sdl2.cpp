@@ -23,7 +23,9 @@ SPDX-License-Identifier: MIT
 #include "bstone_sys_limits_sdl2.h"
 #include "bstone_sys_video_mgr_null.h"
 #include "bstone_sys_mouse_mgr_sdl2.h"
+#ifdef BSTONE_ENABLE_VULKAN
 #include "bstone_sys_vulkan_mgr_sdl2.h"
+#endif
 #include "bstone_sys_window_mgr_sdl2.h"
 #include "bstone_sys_sdl2_subsystem.h"
 
@@ -31,6 +33,32 @@ namespace bstone {
 namespace sys {
 
 namespace {
+
+#ifndef BSTONE_ENABLE_VULKAN
+class NullVulkanMgr final : public VulkanMgr
+{
+public:
+	bool do_is_vulkan_available() const override
+	{
+		return false;
+	}
+
+	void* do_get_instance_proc_addr() const override
+	{
+		BSTONE_THROW_STATIC_SOURCE("Vulkan is disabled.");
+	}
+
+	Span<const char*> do_get_required_extensions(Window&) override
+	{
+		BSTONE_THROW_STATIC_SOURCE("Vulkan is disabled.");
+	}
+
+	VkSurfaceKHR do_create_surface(Window&, VkInstance) override
+	{
+		BSTONE_THROW_STATIC_SOURCE("Vulkan is disabled.");
+	}
+};
+#endif
 
 class Sdl2VideoMgr final : public VideoMgr
 {
@@ -54,7 +82,9 @@ private:
 	WindowMgrUPtr window_mgr_{};
 	DisplayModeCache display_mode_cache_{};
 	GlCurrentContextUPtr gl_current_context_{};
+#ifdef BSTONE_ENABLE_VULKAN
 	VulkanMgrUPtr vulkan_mgr_{};
+#endif
 
 private:
 	bool do_is_initialized() const noexcept override;
@@ -109,7 +139,9 @@ Sdl2VideoMgr::~Sdl2VideoMgr()
 	logger_.log_information("Shut down SDL video manager.");
 
 	gl_current_context_ = nullptr;
+#ifdef BSTONE_ENABLE_VULKAN
 	vulkan_mgr_ = nullptr;
+#endif
 	window_mgr_ = nullptr;
 	mouse_mgr_ = nullptr;
 }
@@ -171,12 +203,17 @@ VulkanMgr& Sdl2VideoMgr::do_get_vulkan_mgr()
 {
 	BSTONE_ASSERT(is_initialized_);
 
+#ifdef BSTONE_ENABLE_VULKAN
 	if (vulkan_mgr_ == nullptr)
 	{
 		vulkan_mgr_ = make_vulkan_mgr(logger_);
 	}
 
 	return *vulkan_mgr_;
+#else
+	static NullVulkanMgr null_vulkan_mgr{};
+	return null_vulkan_mgr;
+#endif
 }
 
 MouseMgr& Sdl2VideoMgr::do_get_mouse_mgr()

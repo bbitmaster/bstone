@@ -11,7 +11,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include "bstone_exception.h"
 #include "bstone_logger.h"
 #include "bstone_memory.h"
+#ifdef BSTONE_ENABLE_OPENAL
 #include "bstone_oal_audio_mixer.h"
+#endif
 #include "bstone_system_audio_mixer.h"
 
 namespace bstone
@@ -60,8 +62,10 @@ try {
 		case AudioDriverType::system:
 			return std::make_unique<SystemAudioMixer>(param);
 
+#ifdef BSTONE_ENABLE_OPENAL
 		case AudioDriverType::openal:
 			return std::make_unique<OalAudioMixer>(param);
+#endif
 
 		default:
 			BSTONE_THROW_STATIC_SOURCE("Unsupported driver type.");

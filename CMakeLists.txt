@@ -16,7 +16,20 @@ option(BSTONE_NO_ASSERT "Disable assertion." OFF)
 message(STATUS "[bstone_solution] Disable assertion: ${BSTONE_NO_ASSERT}")
 
 option(BSTONE_INTERNAL_SDL2 "Use bundled SDL2 source code." OFF)
+
+option(BSTONE_ENABLE_VULKAN "Enable Vulkan renderer and support code." ON)
+
+option(BSTONE_ENABLE_OPENAL "Enable OpenAL audio backend." ON)
+
+if (EMSCRIPTEN)
+	set(BSTONE_INTERNAL_SDL2 ON CACHE BOOL "Use bundled SDL2 source code." FORCE)
+	set(BSTONE_ENABLE_VULKAN OFF CACHE BOOL "Enable Vulkan renderer and support code." FORCE)
+	set(BSTONE_ENABLE_OPENAL OFF CACHE BOOL "Enable OpenAL audio backend." FORCE)
+endif ()
+
 message(STATUS "[bstone_solution] Internal SDL2: ${BSTONE_INTERNAL_SDL2}")
+message(STATUS "[bstone_solution] Vulkan support: ${BSTONE_ENABLE_VULKAN}")
+message(STATUS "[bstone_solution] OpenAL support: ${BSTONE_ENABLE_OPENAL}")
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 

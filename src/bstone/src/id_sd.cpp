@@ -432,10 +432,12 @@ AudioDriverType sd_get_driver_type_from_cvar() noexcept
 		return AudioDriverType::system;
 	}
 
+#ifdef BSTONE_ENABLE_OPENAL
 	if (driver_sv == snd_driver_cvar_openal)
 	{
 		return AudioDriverType::openal;
 	}
+#endif
 
 	return AudioDriverType::auto_detect;
 }
@@ -477,7 +479,9 @@ void sd_startup()
 
 		if (user_driver_type == AudioDriverType::auto_detect)
 		{
+#ifdef BSTONE_ENABLE_OPENAL
 			driver_types.emplace_back(AudioDriverType::openal);
+#endif
 			driver_types.emplace_back(AudioDriverType::system);
 		}
 		else
@@ -1376,9 +1380,11 @@ void sd_set_audio_driver_type(AudioDriverType audio_driver_type)
 			snd_driver_cvar.set_string(snd_driver_cvar_system);
 			break;
 
+#ifdef BSTONE_ENABLE_OPENAL
 		case AudioDriverType::openal:
 			snd_driver_cvar.set_string(snd_driver_cvar_openal);
 			break;
+#endif
 
 		default:
 			snd_driver_cvar.set_string(snd_auto_detect_string);

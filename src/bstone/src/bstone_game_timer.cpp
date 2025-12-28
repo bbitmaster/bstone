@@ -8,6 +8,10 @@ SPDX-License-Identifier: MIT
 
 #include <algorithm>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 #include "bstone_exception.h"
 
 namespace bstone {
@@ -26,7 +30,11 @@ GameTimer::~GameTimer()
 
 bool GameTimer::is_started() const noexcept
 {
+#ifdef __EMSCRIPTEN__
+	return is_started_;
+#else
 	return thread_.joinable();
+#endif
 }
 
 void GameTimer::start(int frequency)
@@ -40,7 +48,13 @@ try {
 
 	mt_is_cancellation_requested_ = false;
 	set_ticks_internal(0);
+#ifdef __EMSCRIPTEN__
+	frequency_ = frequency;
+	start_time_ms_ = emscripten_get_now();
+	is_started_ = true;
+#else
 	thread_ = Thread{&GameTimer::thread_main, this, frequency};
+#endif
 }
 catch (...)
 {
@@ -55,20 +69,35 @@ void GameTimer::stop() noexcept
 		return;
 	}
 
+#ifdef __EMSCRIPTEN__
+	is_started_ = false;
+#else
 	mt_is_cancellation_requested_ = true;
 	thread_.join();
+#endif
 }
 
 GameTimerTicks GameTimer::get_ticks() const
 {
 	ensure_is_started();
+#ifdef __EMSCRIPTEN__
+	const auto now_ms = emscripten_get_now();
+	const auto elapsed_ms = now_ms - start_time_ms_;
+	const auto elapsed_ticks = static_cast<GameTimerTicks>(
+		(elapsed_ms * frequency_) / 1000.0);
+	return mt_ticks_.load(std::memory_order_relaxed) + elapsed_ticks;
+#else
 	return mt_ticks_.load(std::memory_order_acquire);
+#endif
 }
 
 void GameTimer::set_ticks(GameTimerTicks ticks)
 {
 	ensure_is_started();
 	set_ticks_internal(ticks);
+#ifdef __EMSCRIPTEN__
+	start_time_ms_ = emscripten_get_now();
+#endif
 }
 
 void GameTimer::subtract_ticks(GameTimerTicks ticks)
@@ -102,6 +131,7 @@ void GameTimer::increase_ticks() noexcept
 
 void GameTimer::thread_main(int frequency) noexcept
 {
+#ifndef __EMSCRIPTEN__
 	const auto base_interval = ClockTicks{1000} / frequency;
 	const auto double_base_interval = base_interval * 2;
 	auto interval_counter = ClockTicks{frequency};
@@ -126,6 +156,9 @@ void GameTimer::thread_main(int frequency) noexcept
 		const auto new_adjusted_interval = std::max(new_interval, ClockTicks{0});
 		std::this_thread::sleep_for(Milliseconds{new_adjusted_interval});
 	}
+#else
+	static_cast<void>(frequency);
+#endif
 }
 
 // ==========================================================================

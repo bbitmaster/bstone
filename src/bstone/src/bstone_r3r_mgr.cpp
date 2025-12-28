@@ -15,7 +15,9 @@ SPDX-License-Identifier: MIT
 #include "bstone_null_r3r.h"
 #endif
 #include "bstone_gl_r3r.h"
+#if defined(BSTONE_ENABLE_VULKAN)
 #include "bstone_vk_r3r.h"
+#endif
 
 namespace bstone {
 
@@ -89,9 +91,11 @@ try {
 			return gl_renderer_.get();
 #endif // BSTONE_R3R_TEST_NO_GL
 
+#if defined(BSTONE_ENABLE_VULKAN)
 		case R3rType::vulkan:
 			gl_renderer_ = make_vk_r3r(video_mgr_, window_mgr_, param);
 			return gl_renderer_.get();
+#endif
 
 		default:
 			BSTONE_THROW_STATIC_SOURCE("Unsupported renderer type.");

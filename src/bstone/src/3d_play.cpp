@@ -8,6 +8,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <cstring>
 #include <cmath>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "audio.h"
 #include "id_ca.h"
@@ -547,7 +550,7 @@ void PollMouseMove()
 
 void PollJoystickMove()
 {
-	int axisvalues[k_max_joystick_axes * 2];
+	int axisvalues[k_max_joystick_axes * 2] = {};  // Zero-initialize to avoid reading garbage
 
 	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++)
 	{
@@ -2197,6 +2200,9 @@ void PlayLoop()
 			playstate = ex_abort;
 		}
 
+#ifdef __EMSCRIPTEN__
+		emscripten_sleep(0);
+#endif
 
 	} while (!playstate && !startgame);
 

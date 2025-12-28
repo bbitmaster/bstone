@@ -14,6 +14,10 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include <stdexcept>
 #include <vector>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "audio.h"
 #include "id_ca.h"
 #include "id_heads.h"
@@ -1524,6 +1528,11 @@ void binds_draw_menu()
 						menu_play_no_way_sound();
 					}
 				}
+
+#ifdef __EMSCRIPTEN__
+				// Yield to browser to prevent freeze while waiting for key input
+				emscripten_sleep(0);
+#endif
 			}
 
 			is_escape_pressed = true;
@@ -1722,6 +1731,11 @@ void binds_draw_menu()
 				break;
 			}
 		}
+
+#ifdef __EMSCRIPTEN__
+		// Yield to browser to prevent UI freeze
+		emscripten_sleep(0);
+#endif
 	}
 
 	MenuFadeOut();
@@ -2759,6 +2773,7 @@ struct SoundDriverItem
 	std::string name{};
 }; // SoundDriverItem
 
+#ifdef BSTONE_ENABLE_OPENAL
 constexpr auto sound_driver_count = 3;
 
 const SoundDriverItem sound_drivers[sound_driver_count] =
@@ -2767,6 +2782,15 @@ const SoundDriverItem sound_drivers[sound_driver_count] =
 	SoundDriverItem{AudioDriverType::system, "SYSTEM"},
 	SoundDriverItem{AudioDriverType::openal, "OPENAL"},
 };
+#else
+constexpr auto sound_driver_count = 2;
+
+const SoundDriverItem sound_drivers[sound_driver_count] =
+{
+	SoundDriverItem{AudioDriverType::auto_detect, "AUTO-DETECT"},
+	SoundDriverItem{AudioDriverType::system, "SYSTEM"},
+};
+#endif
 
 struct SoundOpl3TypeItem
 {
@@ -2836,9 +2860,11 @@ void initialize_sound_driver_index()
 			sound_driver_index = 1;
 			break;
 
+#ifdef BSTONE_ENABLE_OPENAL
 		case AudioDriverType::openal:
 			sound_driver_index = 2;
 			break;
+#endif
 
 		case AudioDriverType::auto_detect:
 		default:
@@ -4236,6 +4262,9 @@ void TicDelay(
 	do
 	{
 		ReadAnyControl(&ci);
+#ifdef __EMSCRIPTEN__
+		emscripten_sleep(0);
+#endif
 	} while (TimeCount < count && ci.dir != dir_None);
 }
 
@@ -5181,7 +5210,9 @@ const std::string& menu_video_mode_renderer_type_get_string(
 #ifndef NDEBUG
 	static const auto null_string = std::string{"NULL"};
 #endif
+#ifdef BSTONE_ENABLE_VULKAN
 	static const auto vulkan_string = std::string{"VULKAN"};
+#endif
 
 	switch (renderer_type)
 	{
@@ -5205,8 +5236,10 @@ const std::string& menu_video_mode_renderer_type_get_string(
 		case bstone::RendererType::gles_2_0:
 			return gles_2_0_string;
 
+#ifdef BSTONE_ENABLE_VULKAN
 		case bstone::RendererType::vulkan:
 			return vulkan_string;
+#endif
 
 		default:
 			BSTONE_THROW_STATIC_SOURCE("Unsupported renderer type.");
@@ -6600,6 +6633,11 @@ void filler_color_routine(
 			highlight_counter = 0;
 			is_highlighted = !is_highlighted;
 		}
+
+#ifdef __EMSCRIPTEN__
+		// Yield to browser to prevent UI freeze
+		emscripten_sleep(0);
+#endif
 	}
 
 	MenuFadeOut();

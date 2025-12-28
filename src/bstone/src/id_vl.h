@@ -513,6 +513,8 @@ const bstone::Rgba8Palette& vid_hw_get_default_palette();
 void vid_apply_video_mode(
 	const VideoModeCfg& video_mode_cfg);
 
+void vid_apply_window_mode();
+
 void vid_apply_anisotropy();
 
 void vid_apply_2d_image_filter();

@@ -15,6 +15,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include <iterator>
 #include <stdexcept>
 #include <thread>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "3d_def.h"
 #include "jm_lzh.h"
 #include "jm_tp.h"
@@ -9975,7 +9978,11 @@ int main(
 	const auto& log_file_path = profile_dir + "bstone_log.txt";
 
 	auto logger_open_param = bstone::LoggerOpenParam{};
+#ifdef __EMSCRIPTEN__
+	logger_open_param.is_synchronous = true;
+#else
 	logger_open_param.is_synchronous = opt_is_log_sync;
+#endif
 	logger_open_param.flush_policy =
 		opt_is_log_flush_every_message ?
 		bstone::LoggerFlushPolicy::every_message :
@@ -10762,8 +10769,12 @@ void gametype::decode_barrier_index(
 
 void sys_sleep_for(int milliseconds)
 {
+#ifdef __EMSCRIPTEN__
+	emscripten_sleep(milliseconds);
+#else
 	const auto delay_ms = std::chrono::milliseconds{milliseconds};
 	std::this_thread::sleep_for(delay_ms);
+#endif
 }
 
 void sys_default_sleep_for()
@@ -10841,7 +10852,11 @@ const std::string& get_default_data_dir()
 	{
 		is_initialized = true;
 
+#ifdef __EMSCRIPTEN__
+		result = "/data/";
+#else
 		result = bstone::fs_utils::get_working_dir();
+#endif
 
 #ifdef __vita__
 		result = "ux0:/data/bstone/";

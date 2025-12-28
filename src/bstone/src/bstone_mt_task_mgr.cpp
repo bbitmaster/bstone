@@ -91,6 +91,87 @@ private:
 
 
 // ==========================================================================
+// Single-threaded task manager for platforms without std::thread support.
+// ==========================================================================
+#ifdef __EMSCRIPTEN__
+class MtTaskMgrSingleThread final :
+	public MtTaskMgr
+{
+public:
+	explicit MtTaskMgrSingleThread(int max_task_count)
+		:
+		max_task_count_{max_task_count}
+	{
+		if (max_task_count_ <= 0)
+		{
+			BSTONE_THROW_STATIC_SOURCE("Max task count out of range.");
+		}
+	}
+
+	~MtTaskMgrSingleThread() override = default;
+
+	int get_max_threads() const noexcept override
+	{
+		return 1;
+	}
+
+	int get_thread_count() const noexcept override
+	{
+		return 1;
+	}
+
+	void add_tasks(MtTaskPtr* mt_tasks, int mt_task_count) override
+	{
+		execute_tasks(mt_tasks, mt_task_count, false);
+	}
+
+	void add_tasks_and_wait_for_added(MtTaskPtr* mt_tasks, int mt_task_count) override
+	{
+		execute_tasks(mt_tasks, mt_task_count, true);
+	}
+
+private:
+	int max_task_count_{};
+
+	void execute_tasks(MtTaskPtr* mt_tasks, int mt_task_count, bool should_throw)
+	{
+		if (mt_task_count < 0 || mt_task_count > max_task_count_)
+		{
+			BSTONE_THROW_STATIC_SOURCE("Task count out of range.");
+		}
+
+		for (int i = 0; i < mt_task_count; ++i)
+		{
+			auto* mt_task = mt_tasks[i];
+
+			try
+			{
+				mt_task->execute();
+				mt_task->set_completed();
+			}
+			catch (...)
+			{
+				mt_task->set_failed(std::current_exception());
+			}
+		}
+
+		if (should_throw)
+		{
+			for (int i = 0; i < mt_task_count; ++i)
+			{
+				const auto& mt_task = mt_tasks[i];
+
+				if (mt_task->is_failed())
+				{
+					std::rethrow_exception(mt_task->get_exception_ptr());
+				}
+			}
+		}
+	}
+};
+#endif
+
+// ==========================================================================
 // MtTaskMgrImpl
 //
 
@@ -503,7 +584,12 @@ MtTaskMgrUPtr make_mt_task_manager(
 	int thread_reserve_count,
 	int max_task_count)
 {
+#ifdef __EMSCRIPTEN__
+	static_cast<void>(thread_reserve_count);
+	return std::make_unique<MtTaskMgrSingleThread>(max_task_count);
+#else
 	return std::make_unique<MtTaskMgrImpl>(thread_reserve_count, max_task_count);
+#endif
 }
 
 

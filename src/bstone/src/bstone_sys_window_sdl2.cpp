@@ -641,6 +641,12 @@ Uint32 Sdl2Window::map_flags(const WindowInitParam& param) noexcept
 
 	sdl_flags |= param.is_visible ? SDL_WINDOW_SHOWN : SDL_WINDOW_HIDDEN;
 
+#ifdef __EMSCRIPTEN__
+	// On Emscripten, SDL2 uses this flag to detect external CSS sizing
+	// and to respond to browser window resize events.
+	sdl_flags |= SDL_WINDOW_RESIZABLE;
+#endif
+
 	return sdl_flags;
 }
 
@@ -659,9 +665,15 @@ GlContextAttributes Sdl2Window::make_default_gl_attributes() noexcept
 {
 	auto gl_attributes = GlContextAttributes{};
 	gl_attributes.is_accelerated = true;
+#ifdef __EMSCRIPTEN__
+	gl_attributes.profile = GlContextProfile::es;
+	gl_attributes.major_version = 2;
+	gl_attributes.minor_version = 0;
+#else
 	gl_attributes.profile = GlContextProfile::compatibility;
 	gl_attributes.major_version = 1;
 	gl_attributes.minor_version = 1;
+#endif
 	gl_attributes.multisample_buffer_count = 0;
 	gl_attributes.multisample_sample_count = 0;
 	gl_attributes.red_bit_count = 0;

@@ -19,6 +19,10 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include <algorithm>
 #include <iostream>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "audio.h"
 #include "id_ca.h"
 #include "id_heads.h"
@@ -202,6 +206,10 @@ bool has_content(
 	{
 		return false;
 	}
+
+#ifdef __EMSCRIPTEN__
+	return true;
+#endif
 
 	for (const auto& assets_resource : assets_resources)
 	{
@@ -432,6 +440,38 @@ const FoundContent* choose_content(
 	{
 		return found_contents.data();
 	}
+
+#ifdef __EMSCRIPTEN__
+	for (const auto& found_content : found_contents)
+	{
+		if (found_content.game_ == Game::aog)
+		{
+			bstone::globals::logger->log_information("Multiple contents found; selecting AOG for web.");
+			return &found_content;
+		}
+	}
+
+	for (const auto& found_content : found_contents)
+	{
+		if (found_content.game_ == Game::aog_sw)
+		{
+			bstone::globals::logger->log_information("Multiple contents found; selecting AOG shareware for web.");
+			return &found_content;
+		}
+	}
+
+	for (const auto& found_content : found_contents)
+	{
+		if (found_content.game_ == Game::ps)
+		{
+			bstone::globals::logger->log_information("Multiple contents found; selecting PS for web.");
+			return &found_content;
+		}
+	}
+
+	bstone::globals::logger->log_information("Multiple contents found; selecting first for web.");
+	return found_contents.data();
+#endif
 
 	bstone::globals::logger->log_information("Found multiple contents.");
 
@@ -671,6 +711,13 @@ void find_contents()
 	{
 		add_search_path("custom dir", data_dir_, search_paths);
 	}
+
+#ifdef __EMSCRIPTEN__
+	if (!data_dir_.empty())
+	{
+		add_search_path("data dir", data_dir_, search_paths);
+	}
+#endif
 
 	{
 		const auto working_full_dir = bstone::fs_utils::append_path_separator(
@@ -1120,6 +1167,9 @@ void PreDemo()
 		IN_StartAck();
 		while (sd_is_music_playing() && (!IN_CheckAck()))
 		{
+#ifdef __EMSCRIPTEN__
+			emscripten_sleep(0);
+#endif
 		}
 	}
 	else

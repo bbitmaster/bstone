@@ -12,7 +12,14 @@ SPDX-License-Identifier: MIT
 #include "bstone_span.h"
 #include "bstone_sys_window.h"
 #include <memory>
+#ifdef BSTONE_ENABLE_VULKAN
 #include "vulkan/vulkan.h"
+#else
+struct VkInstance_T;
+struct VkSurfaceKHR_T;
+using VkInstance = VkInstance_T*;
+using VkSurfaceKHR = VkSurfaceKHR_T*;
+#endif
 
 namespace bstone {
 namespace sys {
