@@ -36,7 +36,7 @@ void TranslateAnalogEvent(SDL_Event *ev);
 
 #define MaxPlayers 4
 #define MaxKbds 2
-#define NumCodes 128
+#define NumCodes 256
 
 enum class ScanCode
 {
@@ -139,6 +139,56 @@ enum class ScanCode
 
 	sc_mouse_wheel_down = 0x69,
 	sc_mouse_wheel_up = 0x6A,
+
+	// Joystick axes (up/down for each axis)
+	sc_joy_axis0_up   = 0x80,
+	sc_joy_axis0_down = 0x81,
+	sc_joy_axis1_up = 0x82,
+	sc_joy_axis1_down = 0x83,
+	sc_joy_axis2_up = 0x84,
+	sc_joy_axis2_down = 0x85,
+	sc_joy_axis3_up = 0x86,
+	sc_joy_axis3_down = 0x87,
+	sc_joy_axis4_up = 0x88,
+	sc_joy_axis4_down = 0x89,
+	sc_joy_axis5_up = 0x8a,
+	sc_joy_axis5_down = 0x8b,
+	sc_joy_axis6_up = 0x8c,
+	sc_joy_axis6_down = 0x8d,
+
+	// Joystick buttons
+	sc_joy_btn0 = 0x90,
+	sc_joy_btn1 = 0x91,
+	sc_joy_btn2 = 0x92,
+	sc_joy_btn3 = 0x93,
+	sc_joy_btn4 = 0x94,
+	sc_joy_btn5 = 0x95,
+	sc_joy_btn6 = 0x96,
+	sc_joy_btn7 = 0x97,
+	sc_joy_btn8 = 0x98,
+	sc_joy_btn9 = 0x99,
+	sc_joy_btn10 = 0x9a,
+	sc_joy_btn11 = 0x9b,
+	sc_joy_btn12 = 0x9c,
+	sc_joy_btn13 = 0x9d,
+	sc_joy_btn14 = 0x9e,
+	sc_joy_btn15 = 0x9f,
+	sc_joy_btn16 = 0xa0,
+	sc_joy_btn17 = 0xa1,
+	sc_joy_btn18 = 0xa2,
+	sc_joy_btn19 = 0xa3,
+	sc_joy_btn20 = 0xa4,
+	sc_joy_btn21 = 0xa5,
+	sc_joy_btn22 = 0xa6,
+	sc_joy_btn23 = 0xa7,
+	sc_joy_btn24 = 0xa8,
+	sc_joy_btn25 = 0xa9,
+	sc_joy_btn26 = 0xaa,
+	sc_joy_btn27 = 0xab,
+	sc_joy_btn28 = 0xac,
+	sc_joy_btn29 = 0xad,
+	sc_joy_btn30 = 0xae,
+	sc_joy_btn31 = 0xaf
 };
 
 #define key_None 0
@@ -255,7 +305,7 @@ enum BindingId
 	e_bi_last_entry,
 };
 
-constexpr auto k_max_binding_keys = 2;
+constexpr auto k_max_binding_keys = 3;
 constexpr auto k_max_bindings = e_bi_last_entry;
 
 using Binding = ScanCode[k_max_binding_keys];
@@ -263,7 +313,32 @@ using Bindings = Binding[k_max_bindings];
 
 extern Bindings in_bindings;
 
+// Joystick constants and variables
+constexpr auto k_max_joystick_axes = 6;
+extern int in_joy_deadzone[k_max_joystick_axes];
+extern int in_joy_sensitivity[k_max_joystick_axes];
+
+extern int JoyNumAxes;
+extern int JoyNumButtons;
+
+extern std::bitset<NumCodes> jstate;
+
+// Clamp function for joystick
+template<class T>
+inline T clamp(const T in, const T min, const T max)
+{
+	return in <= min ? min : in >= max ? max : in;
+}
+
 void in_set_default_bindings();
+
+// Joystick functions
+void init_joystick_gamepad();
+int IN_JoyButtons(bool& bt_esc);
+void IN_GetJoyDelta(int* dx, int* dy);
+int IN_GetJoyAxis(int axis);
+void UpdateRawJoystickAxis();
+void PollJoystickButton();
 
 struct CursorInfo
 {
