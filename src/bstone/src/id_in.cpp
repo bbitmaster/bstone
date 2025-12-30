@@ -1456,9 +1456,9 @@ void PollJoystickButton()
 			{
 				if (!local_jstate[static_cast<int>(i)])
 				{
-					LastScan = i;
 					if (!check_is_movement_key(static_cast<int>(i)))
 					{
+						LastScan = i;
 						Keyboard[static_cast<int>(i)] = true;
 					}
 				}
