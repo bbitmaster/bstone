@@ -4000,6 +4000,8 @@ void sys_sleep_for(int milliseconds);
 
 void sys_default_sleep_for();
 
+void emscripten_sync_idbfs();
+
 const std::string& get_profile_dir();
 
 const std::string& get_screenshot_dir();

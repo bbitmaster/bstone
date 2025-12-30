@@ -229,13 +229,13 @@ auto vid_texture_upscale_filter_cvar = bstone::CVar{
 	bstone::CVarStringTag{},
 	vid_texture_upscale_filter_cvar_name,
 	bstone::CVarFlags::archive,
-	vid_none_string,
+	vid_texture_upscale_filter_cvar_xbrz,  // Default to XBRZ for better visuals
 	bstone::make_span(vid_texture_upscale_filter_cvar_values)};
 
 // vid_texture_upscale_xbrz_degree
 
 constexpr auto vid_texture_upscale_xbrz_degree_cvar_name = bstone::StringView{"vid_texture_upscale_xbrz_degree"};
-constexpr auto vid_texture_upscale_xbrz_degree_cvar_default = 0;
+constexpr auto vid_texture_upscale_xbrz_degree_cvar_default = 2;  // Default to 2x upscale
 
 auto vid_texture_upscale_xbrz_degree_cvar = bstone::CVar{
 	bstone::CVarInt32Tag{},

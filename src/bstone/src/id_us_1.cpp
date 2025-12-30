@@ -465,6 +465,26 @@ bool US_LineInput(
 		c = LastASCII;
 		LastASCII = key_None;
 
+#ifdef __EMSCRIPTEN__
+		// Check gamepad A button (0) or Start button (9) as Enter (W3C standard)
+		// Use static to track button state for edge detection (trigger on press, not hold)
+		{
+			static int prev_joy_buttons = 0;
+			bool bt_esc_unused = false;
+			int joy_buttons = IN_JoyButtons(bt_esc_unused);
+			const int confirm_mask = (1 << 0) | (1 << 9);  // A=0, Start=9
+			bool is_pressed = (joy_buttons & confirm_mask) != 0;
+			bool was_pressed = (prev_joy_buttons & confirm_mask) != 0;
+			prev_joy_buttons = joy_buttons;
+
+			// Only trigger on button-down edge (was not pressed, now is pressed)
+			if (is_pressed && !was_pressed)
+			{
+				sc = ScanCode::sc_return;
+			}
+		}
+#endif
+
 		switch (sc)
 		{
 			case ScanCode::sc_return:

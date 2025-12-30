@@ -8,6 +8,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <cmath>
 #include <cstring>
+#include <ctime>
 
 #include <algorithm>
 #include <map>
@@ -1103,6 +1104,8 @@ void binds_initialize_menu()
 	binds_names[ScanCode::sc_joy_axis5_down] = "JA5+";
 	binds_names[ScanCode::sc_joy_axis6_up] = "JA6-";
 	binds_names[ScanCode::sc_joy_axis6_down] = "JA6+";
+	binds_names[ScanCode::sc_joy_axis7_up] = "JA7-";
+	binds_names[ScanCode::sc_joy_axis7_down] = "JA7+";
 
 	// Joystick button names
 	binds_names[ScanCode::sc_joy_btn0] = "JY00";
@@ -3392,6 +3395,21 @@ std::int16_t CP_SaveGame(
 
 			if (US_LineInput(LSM_X + LSItems.indent + 2, LSM_Y + which * LSItems.y_spacing, input, input, true, GAME_DESCRIPTION_LEN, LSM_W - LSItems.indent - 10))
 			{
+				// If no name entered, use date/time as default
+				if (input[0] == '\0')
+				{
+					std::time_t now = std::time(nullptr);
+					std::tm* local_time = std::localtime(&now);
+					if (local_time)
+					{
+						std::strftime(input, GAME_DESCRIPTION_LEN + 1, "%m/%d/%y %H:%M", local_time);
+					}
+					else
+					{
+						strcpy(input, "UNNAMED SAVE");
+					}
+				}
+
 				SaveGamesAvail[which] = 1;
 				strcpy(&SaveGameNames[which][0], input);
 
@@ -3788,7 +3806,11 @@ void ReadGameNames()
 
 		bstone::FileStream stream{};
 
+#ifdef __EMSCRIPTEN__
+		if (!stream.open(name_path.c_str(), bstone::file_flags_read))
+#else
 		if (!stream.open(name_path.c_str(), bstone::file_flags_shared))
+#endif
 		{
 			continue;
 		}
@@ -4444,6 +4466,7 @@ std::int16_t Confirm(
 	std::int16_t xit = 0, x, y, tick = 0, whichsnd[2] = {ESCPRESSEDSND, SHOOTSND};
 	ControlInfo ci;
 	bool joy_yes = false, joy_no = false;
+	bool key_yes = false, key_no = false;
 
 	Message(string);
 
@@ -4498,11 +4521,13 @@ std::int16_t Confirm(
 		ReadAnyControl(&ci);
 		joy_yes = ci.button0;
 		joy_no = ci.button1;
+		key_yes = (LastASCII == 'y' || LastASCII == 'Y');
+		key_no = (LastASCII == 'n' || LastASCII == 'N');
 	} while (!Keyboard[ScanCode::sc_y] && !Keyboard[ScanCode::sc_n] && !Keyboard[ScanCode::sc_escape] &&
-	         !joy_yes && !joy_no);
+	         !joy_yes && !joy_no && !key_yes && !key_no);
 
 
-	if (Keyboard[ScanCode::sc_y] || joy_yes)
+	if (Keyboard[ScanCode::sc_y] || key_yes || joy_yes)
 	{
 		xit = 1;
 		ShootSnd();

@@ -896,6 +896,15 @@ void in_handle_events()
 		vid_schedule_take_screenshot();
 	}
 
+#ifdef __EMSCRIPTEN__
+	// Re-scan for gamepads after user interaction; web builds often report zero
+	// joysticks at startup until the browser exposes them.
+	if (!GameController && !Joystick)
+	{
+		init_joystick_gamepad();
+	}
+#endif
+
 	// Poll joystick/gamepad buttons and axes
 	PollJoystickButton();
 }
@@ -1199,18 +1208,31 @@ void in_set_mouse_sensitivity(int sensitivity)
 
 void init_joystick_gamepad()
 {
+	if (GameController || Joystick)
+	{
+		return;
+	}
+
 	int param_joystickindex = 0;
 	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == 0 &&
 		param_joystickindex >= 0 && param_joystickindex < SDL_NumJoysticks())
 	{
-		if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0 && SDL_IsGameController(param_joystickindex))
+#ifdef __EMSCRIPTEN__
+		const auto use_gamecontroller = false;
+#else
+		const auto use_gamecontroller =
+			SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0 &&
+			SDL_IsGameController(param_joystickindex);
+#endif
+
+		if (use_gamecontroller)
 		{
 			GameController = SDL_GameControllerOpen(param_joystickindex);
 			if (GameController)
 			{
 				SDL_GameControllerEventState(SDL_IGNORE);
 				JoyNumButtons = std::max(static_cast<int>(SDL_CONTROLLER_BUTTON_MAX), 21);
-				JoyNumAxes = std::max(static_cast<int>(SDL_CONTROLLER_AXIS_MAX), 6);
+				JoyNumAxes = std::min(static_cast<int>(SDL_CONTROLLER_AXIS_MAX), k_max_joystick_axes);
 			}
 		}
 		else
@@ -1220,7 +1242,7 @@ void init_joystick_gamepad()
 			{
 				JoyNumButtons = SDL_JoystickNumButtons(Joystick);
 				if (JoyNumButtons > 32) JoyNumButtons = 32;
-				JoyNumAxes = SDL_JoystickNumAxes(Joystick);
+				JoyNumAxes = std::min(SDL_JoystickNumAxes(Joystick), k_max_joystick_axes);
 			}
 		}
 	}
@@ -1280,6 +1302,14 @@ int IN_JoyButtons(bool& bt_esc)
 
 	for (; i < JoyNumButtons && i < 32; i++)
 	{
+#ifdef __EMSCRIPTEN__
+		// W3C Gamepad standard: Start=9 triggers ESC
+		if (i == 9 && SDL_JoystickGetButton(Joystick, i))
+		{
+			bt_esc = true;
+		}
+#endif
+
 		res |= SDL_JoystickGetButton(Joystick, i) << i;
 	}
 
@@ -1330,6 +1360,33 @@ void IN_GetJoyDelta(int* dx, int* dy)
 			else if (hatState & SDL_HAT_UP)
 				y -= 127;
 		}
+
+#ifdef __EMSCRIPTEN__
+		// Some browsers (e.g., Brave) expose D-pad as axes 6-7.
+		if (JoyNumAxes >= 8)
+		{
+			const int dpad_x = SDL_JoystickGetAxis(Joystick, 6) >> 8;
+			const int dpad_y = SDL_JoystickGetAxis(Joystick, 7) >> 8;
+			if (dpad_x != 0 || dpad_y != 0)
+			{
+				x = dpad_x;
+				y = dpad_y;
+			}
+		}
+		// W3C Gamepad standard: D-pad is buttons 12-15 (Up, Down, Left, Right).
+		// Firefox and other standards-compliant browsers use this mapping.
+		if (JoyNumButtons >= 16)
+		{
+			if (SDL_JoystickGetButton(Joystick, 15))  // Right
+				x += 127;
+			else if (SDL_JoystickGetButton(Joystick, 14))  // Left
+				x -= 127;
+			if (SDL_JoystickGetButton(Joystick, 13))  // Down
+				y += 127;
+			else if (SDL_JoystickGetButton(Joystick, 12))  // Up
+				y -= 127;
+		}
+#endif
 	}
 
 	if (x < -128) x = -128;
@@ -1564,13 +1621,30 @@ void in_set_default_bindings()
 	in_bindings[e_bi_backward][2] = ScanCode::sc_joy_axis1_down;
 	in_bindings[e_bi_strafe_left][2] = ScanCode::sc_joy_axis0_up;
 	in_bindings[e_bi_strafe_right][2] = ScanCode::sc_joy_axis0_down;
+#ifdef __EMSCRIPTEN__
+	// W3C Gamepad standard: axis 2 = right stick X (horizontal)
+	in_bindings[e_bi_left][2] = ScanCode::sc_joy_axis2_up;   // Right stick X-
+	in_bindings[e_bi_right][2] = ScanCode::sc_joy_axis2_down; // Right stick X+
+#else
 	in_bindings[e_bi_left][2] = ScanCode::sc_joy_axis3_up;   // Right stick X-
 	in_bindings[e_bi_right][2] = ScanCode::sc_joy_axis3_down; // Right stick X+
+#endif
 
 	// Joystick button bindings
+#ifdef __EMSCRIPTEN__
+	// W3C Gamepad standard: A=0, B=1, X=2, Y=3, LB=4, RB=5, LT=6, RT=7, Select=8, Start=9
+	in_bindings[e_bi_attack][2] = ScanCode::sc_joy_btn5;     // RB
+	in_bindings[e_bi_use][2] = ScanCode::sc_joy_btn0;        // A button
+	in_bindings[e_bi_stats][2] = ScanCode::sc_joy_btn8;      // Select/Back
+	in_bindings[e_bi_cycle_next_weapon][2] = ScanCode::sc_joy_btn1;  // B
+	in_bindings[e_bi_cycle_previous_weapon][2] = ScanCode::sc_joy_btn2;  // X
+#else
 	in_bindings[e_bi_attack][2] = ScanCode::sc_joy_btn10;    // RB
 	in_bindings[e_bi_use][2] = ScanCode::sc_joy_btn0;        // A button
 	in_bindings[e_bi_stats][2] = ScanCode::sc_joy_btn4;      // Select/Back
+	in_bindings[e_bi_cycle_next_weapon][2] = ScanCode::sc_joy_btn1;
+	in_bindings[e_bi_cycle_previous_weapon][2] = ScanCode::sc_joy_btn3;
+#endif
 
 	// Set deadzone and sensitivity defaults
 	for (int i = 0; i < k_max_joystick_axes; i++)
@@ -1969,6 +2043,8 @@ constexpr auto in_joy_axis5_up_sv = bstone::StringView{"joy_axis5_up"};
 constexpr auto in_joy_axis5_down_sv = bstone::StringView{"joy_axis5_down"};
 constexpr auto in_joy_axis6_up_sv = bstone::StringView{"joy_axis6_up"};
 constexpr auto in_joy_axis6_down_sv = bstone::StringView{"joy_axis6_down"};
+constexpr auto in_joy_axis7_up_sv = bstone::StringView{"joy_axis7_up"};
+constexpr auto in_joy_axis7_down_sv = bstone::StringView{"joy_axis7_down"};
 
 // Joystick button names
 constexpr auto in_joy_btn0_sv = bstone::StringView{"joy_btn0"};
@@ -2125,6 +2201,8 @@ constexpr InScanCodeNameToIdMapItem in_scan_code_name_to_id_map[] =
 	{in_joy_axis5_down_sv, ScanCode::sc_joy_axis5_down},
 	{in_joy_axis6_up_sv, ScanCode::sc_joy_axis6_up},
 	{in_joy_axis6_down_sv, ScanCode::sc_joy_axis6_down},
+	{in_joy_axis7_up_sv, ScanCode::sc_joy_axis7_up},
+	{in_joy_axis7_down_sv, ScanCode::sc_joy_axis7_down},
 
 	// Joystick buttons
 	{in_joy_btn0_sv, ScanCode::sc_joy_btn0},

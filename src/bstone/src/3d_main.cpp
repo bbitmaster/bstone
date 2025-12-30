@@ -7171,7 +7171,11 @@ static void write_high_scores()
 
 	if (!stream.open(
 		tmp_scores_path.c_str(),
+#ifdef __EMSCRIPTEN__
+		bstone::file_flags_create | bstone::file_flags_truncate | bstone::file_flags_write))
+#else
 		bstone::file_flags_create | bstone::file_flags_write | bstone::file_flags_exclusive))
+#endif
 	{
 		bstone::globals::logger->log_error(
 			("Failed to open a high scores file for writing: \"" + tmp_scores_path + "\".").c_str());
@@ -7652,7 +7656,11 @@ void read_text_config()
 
 	auto args = std::vector<bstone::StringView>{};
 
+#ifdef __EMSCRIPTEN__
+	if (stream.open(config_path.c_str(), bstone::FileFlags::file_flags_read))
+#else
 	if (stream.open(config_path.c_str(), bstone::FileFlags::file_flags_shared))
+#endif
 	{
 		auto reader = bstone::TextReader{&stream};
 
@@ -7836,7 +7844,11 @@ void write_text_config()
 	{
 		bstone::FileStream stream(
 			tmp_config_path.c_str(),
+#ifdef __EMSCRIPTEN__
+			bstone::file_flags_create | bstone::file_flags_truncate | bstone::file_flags_write);
+#else
 			bstone::file_flags_create | bstone::file_flags_truncate | bstone::file_flags_exclusive);
+#endif
 
 		if (stream.write(stream_data, stream_size) != stream_size)
 		{
@@ -7845,6 +7857,7 @@ void write_text_config()
 	}
 
 	bstone::fs_utils::rename_with_overwrite(tmp_config_path, config_path);
+	emscripten_sync_idbfs();
 }
 
 
@@ -8954,7 +8967,11 @@ bool LoadTheGame(
 
 	auto file_stream = bstone::FileStream{};
 
+#ifdef __EMSCRIPTEN__
+	if (!file_stream.open(file_name.c_str(), bstone::FileFlags::file_flags_read))
+#else
 	if (!file_stream.open(file_name.c_str(), bstone::FileFlags::file_flags_shared))
+#endif
 	{
 		is_succeed = false;
 
@@ -9202,7 +9219,11 @@ bool SaveTheGame(
 
 	if (!file_stream.open(
 		tmp_file_name.c_str(),
+#ifdef __EMSCRIPTEN__
+		bstone::file_flags_create | bstone::file_flags_truncate | bstone::file_flags_write))
+#else
 		bstone::file_flags_create | bstone::file_flags_truncate | bstone::file_flags_exclusive))
+#endif
 	{
 		bstone::globals::logger->log_error(("SAVE: Failed to open file \"" + tmp_file_name + "\".").c_str());
 
@@ -9334,8 +9355,9 @@ bool SaveTheGame(
 		//
 		NewViewSize();
 
-		// Rename temporary file.
+		// Flush and rename temporary file.
 		//
+		file_stream.flush();
 		file_stream.close();
 		bstone::fs_utils::rename_with_overwrite(tmp_file_name, file_name);
 	}
@@ -9347,6 +9369,7 @@ bool SaveTheGame(
 		return false;
 	}
 
+	emscripten_sync_idbfs();
 	return true;
 }
 
@@ -10780,6 +10803,17 @@ void sys_sleep_for(int milliseconds)
 void sys_default_sleep_for()
 {
 	sys_sleep_for(10);
+}
+
+void emscripten_sync_idbfs()
+{
+#ifdef __EMSCRIPTEN__
+	EM_ASM({
+		if (typeof Module !== 'undefined' && Module.bstoneSyncToIdbfs) {
+			Module.bstoneSyncToIdbfs();
+		}
+	});
+#endif
 }
 
 const std::string& get_profile_dir()

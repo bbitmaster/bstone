@@ -155,6 +155,8 @@ enum class ScanCode
 	sc_joy_axis5_down = 0x8b,
 	sc_joy_axis6_up = 0x8c,
 	sc_joy_axis6_down = 0x8d,
+	sc_joy_axis7_up = 0x8e,
+	sc_joy_axis7_down = 0x8f,
 
 	// Joystick buttons
 	sc_joy_btn0 = 0x90,
@@ -314,7 +316,7 @@ using Bindings = Binding[k_max_bindings];
 extern Bindings in_bindings;
 
 // Joystick constants and variables
-constexpr auto k_max_joystick_axes = 6;
+constexpr auto k_max_joystick_axes = 8;
 extern int in_joy_deadzone[k_max_joystick_axes];
 extern int in_joy_sensitivity[k_max_joystick_axes];
 

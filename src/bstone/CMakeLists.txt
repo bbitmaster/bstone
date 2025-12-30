@@ -196,6 +196,9 @@ if (EMSCRIPTEN)
 	# Allow memory to grow for high resolution support (up to 1GB).
 	set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS " -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=1gb")
 
+	# Enable IDBFS for persistent storage (saves, config).
+	set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS " -lidbfs.js")
+
 	if (BSTONE_EMSCRIPTEN_ASYNCIFY)
 		set_property(TARGET bstone APPEND_STRING PROPERTY LINK_FLAGS " -sASYNCIFY")
 	endif ()
