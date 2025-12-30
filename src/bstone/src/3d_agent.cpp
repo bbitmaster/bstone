@@ -3704,11 +3704,12 @@ int aog_input_floor()
 	auto button_index = 0;
 	auto is_button_pressed = false;
 	auto message = &messages[0];
-	auto move_delay = 0;
+	auto prev_stick_move = 0;
+	auto prev_dpad_right = false;
+	auto prev_dpad_left = false;
 
 	constexpr auto joystick_axis_max = 0x7FFF;
 	constexpr auto joystick_axis_scale = 0x8000;
-	constexpr auto max_move_delay = 30;
 
 	PresenterInfo pi{};
 	pi.xl = 24;
@@ -3741,6 +3742,7 @@ int aog_input_floor()
 		IN_ClearKeysDown();
 
 		in_handle_events();
+		PollJoystickButton();
 
 		if (Keyboard[ScanCode::sc_escape] ||
 			Keyboard[ScanCode::sc_mouse_right])
@@ -3748,8 +3750,8 @@ int aog_input_floor()
 			result = -1;
 		}
 
-		auto axis_move = 0;
-
+		// Read stick position (with edge detection for menu navigation)
+		auto stick_move = 0;
 		if (JoyNumAxes > 0)
 		{
 			const auto raw_axis = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
@@ -3757,32 +3759,29 @@ int aog_input_floor()
 
 			if (raw_axis > dz_factor)
 			{
-				axis_move = 1;
+				stick_move = 1;
 			}
 			else if (raw_axis < -dz_factor)
 			{
-				axis_move = -1;
+				stick_move = -1;
 			}
 		}
 
-		if (Keyboard[ScanCode::sc_joy_btn15])
-		{
-			axis_move = 1;
-		}
-		else if (Keyboard[ScanCode::sc_joy_btn14])
-		{
-			axis_move = -1;
-		}
+		// Edge detection for stick
+		const auto stick_edge_right = (stick_move > 0 && prev_stick_move <= 0);
+		const auto stick_edge_left = (stick_move < 0 && prev_stick_move >= 0);
 
-		if (move_delay > 0)
-		{
-			move_delay -= static_cast<int>(tics);
+		// Read D-pad buttons directly from joystick (bypass Keyboard[] edge detection issues)
+		bool bt_esc_unused = false;
+		const auto joy_buttons = IN_JoyButtons(bt_esc_unused);
+		const auto dpad_right = (joy_buttons & (1 << 15)) != 0;  // D-pad right
+		const auto dpad_left = (joy_buttons & (1 << 14)) != 0;   // D-pad left
+		const auto dpad_up = (joy_buttons & (1 << 12)) != 0;     // D-pad up
+		const auto dpad_down = (joy_buttons & (1 << 13)) != 0;   // D-pad down
 
-			if (move_delay < 0)
-			{
-				move_delay = 0;
-			}
-		}
+		// Edge detection for D-pad
+		const auto dpad_edge_right = (dpad_right && !prev_dpad_right) || (dpad_up && !prev_dpad_right);
+		const auto dpad_edge_left = (dpad_left && !prev_dpad_left) || (dpad_down && !prev_dpad_left);
 
 		auto target_level = 0;
 
@@ -3791,11 +3790,9 @@ int aog_input_floor()
 		}
 		else if (Keyboard[ScanCode::sc_up_arrow] ||
 			Keyboard[ScanCode::sc_right_arrow] ||
-			in_is_binding_pressed(BindingId::e_bi_forward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_next_weapon) ||
-			in_is_binding_pressed(BindingId::e_bi_right) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_right) ||
-			(axis_move > 0 && move_delay == 0))
+			stick_edge_right ||
+			dpad_edge_right)
 		{
 			cursor_target_floor += 1;
 
@@ -3805,19 +3802,12 @@ int aog_input_floor()
 			}
 
 			draw_cursor = true;
-
-			if (axis_move > 0)
-			{
-				move_delay = max_move_delay;
-			}
 		}
 		else if (Keyboard[ScanCode::sc_down_arrow] ||
 			Keyboard[ScanCode::sc_left_arrow] ||
-			in_is_binding_pressed(BindingId::e_bi_backward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_previous_weapon) ||
-			in_is_binding_pressed(BindingId::e_bi_left) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_left) ||
-			(axis_move < 0 && move_delay == 0))
+			stick_edge_left ||
+			dpad_edge_left)
 		{
 			cursor_target_floor -= 1;
 
@@ -3827,11 +3817,6 @@ int aog_input_floor()
 			}
 
 			draw_cursor = true;
-
-			if (axis_move < 0)
-			{
-				move_delay = max_move_delay;
-			}
 		}
 		else if (
 			Keyboard[ScanCode::sc_space] ||
@@ -4044,6 +4029,10 @@ int aog_input_floor()
 
 			IN_UserInput(210);
 		}
+
+		prev_stick_move = stick_move;
+		prev_dpad_right = dpad_right || dpad_up;
+		prev_dpad_left = dpad_left || dpad_down;
 	}
 
 	IN_ClearKeysDown();
@@ -4058,6 +4047,8 @@ int ps_input_floor()
 	const auto RADAR_FLAGS = OV_KEYS;
 	const auto MAX_TELEPORTS = 20;
 	const auto MAX_MOVE_DELAY = 30;
+	constexpr auto joystick_axis_max = 0x7FFF;
+	constexpr auto joystick_axis_scale = 0x8000;
 
 	int buttonPic = 0;
 	int buttonY = 0;
@@ -4079,6 +4070,8 @@ int ps_input_floor()
 	objtype old_player;
 	bool locked = false;
 	bool buttonsDrawn = false;
+	auto prev_axis_x = 0;
+	auto prev_axis_y = 0;
 
 	ClearMemory();
 
@@ -4123,8 +4116,48 @@ int ps_input_floor()
 
 		// BBi
 		in_handle_events();
+		PollJoystickButton();
 
-		if (Keyboard[ScanCode::sc_left_arrow] || Keyboard[ScanCode::sc_joy_btn14])
+		auto axis_x = 0;
+		auto axis_y = 0;
+
+		if (JoyNumAxes > 1)
+		{
+			const auto raw_axis_x = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
+			const auto raw_axis_y = clamp<int>(IN_GetJoyAxis(1), -joystick_axis_max, joystick_axis_max);
+			const auto dz_factor = clamp<int>(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
+
+			if (raw_axis_x > dz_factor)
+			{
+				axis_x = 1;
+			}
+			else if (raw_axis_x < -dz_factor)
+			{
+				axis_x = -1;
+			}
+
+			if (raw_axis_y > dz_factor)
+			{
+				axis_y = 1;
+			}
+			else if (raw_axis_y < -dz_factor)
+			{
+				axis_y = -1;
+			}
+		}
+
+		const auto axis_edge_x = (axis_x != 0 && (prev_axis_x == 0 || axis_x != prev_axis_x));
+		const auto axis_edge_y = (axis_y != 0 && (prev_axis_y == 0 || axis_y != prev_axis_y));
+
+		if (axis_edge_x && axis_x < 0)
+		{
+			controlx = -1;
+		}
+		else if (axis_edge_x && axis_x > 0)
+		{
+			controlx = 1;
+		}
+		else if (Keyboard[ScanCode::sc_left_arrow] || Keyboard[ScanCode::sc_joy_btn14])
 		{
 			controlx = -1;
 		}
@@ -4137,7 +4170,15 @@ int ps_input_floor()
 			controlx = 0;
 		}
 
-		if (Keyboard[ScanCode::sc_up_arrow] || Keyboard[ScanCode::sc_joy_btn12])
+		if (axis_edge_y && axis_y < 0)
+		{
+			controly = -1;
+		}
+		else if (axis_edge_y && axis_y > 0)
+		{
+			controly = 1;
+		}
+		else if (Keyboard[ScanCode::sc_up_arrow] || Keyboard[ScanCode::sc_joy_btn12])
 		{
 			controly = -1;
 		}
@@ -4150,6 +4191,14 @@ int ps_input_floor()
 			controly = 0;
 		}
 
+		if (controlx == 0 && controly == 0)
+		{
+			moveActive = 0;
+		}
+
+		prev_axis_x = axis_x;
+		prev_axis_y = axis_y;
+
 		if (Keyboard[ScanCode::sc_escape] || buttonstate[bt_strafe])
 		{
 			rt_code = -1; // ABORT
@@ -4159,7 +4208,10 @@ int ps_input_floor()
 
 			break;
 		}
-		else if (Keyboard[ScanCode::sc_return] || buttonstate[bt_attack])
+		else if (Keyboard[ScanCode::sc_return] ||
+			buttonstate[bt_attack] ||
+			in_is_binding_pressed(BindingId::e_bi_use) ||
+			in_is_binding_pressed(BindingId::e_bi_attack))
 		{
 			if (locked)
 			{
