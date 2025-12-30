@@ -3701,6 +3701,12 @@ int aog_input_floor()
 	auto button_index = 0;
 	auto is_button_pressed = false;
 	auto message = &messages[0];
+	auto prev_stick_move = 0;
+	auto prev_dpad_right = false;
+	auto prev_dpad_left = false;
+
+	constexpr auto joystick_axis_max = 0x7FFF;
+	constexpr auto joystick_axis_scale = 0x8000;
 
 	PresenterInfo pi{};
 	pi.xl = 24;
@@ -3733,12 +3739,46 @@ int aog_input_floor()
 		IN_ClearKeysDown();
 
 		in_handle_events();
+		PollJoystickButton();
 
 		if (Keyboard[ScanCode::sc_escape] ||
 			Keyboard[ScanCode::sc_mouse_right])
 		{
 			result = -1;
 		}
+
+		// Read stick position (with edge detection for menu navigation)
+		auto stick_move = 0;
+		if (JoyNumAxes > 0)
+		{
+			const auto raw_axis = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
+			const auto dz_factor = clamp<int>(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
+
+			if (raw_axis > dz_factor)
+			{
+				stick_move = 1;
+			}
+			else if (raw_axis < -dz_factor)
+			{
+				stick_move = -1;
+			}
+		}
+
+		// Edge detection for stick
+		const auto stick_edge_right = (stick_move > 0 && prev_stick_move <= 0);
+		const auto stick_edge_left = (stick_move < 0 && prev_stick_move >= 0);
+
+		// Read D-pad buttons directly from joystick (bypass Keyboard[] edge detection issues)
+		bool bt_esc_unused = false;
+		const auto joy_buttons = IN_JoyButtons(bt_esc_unused);
+		const auto dpad_right = (joy_buttons & (1 << 15)) != 0;  // D-pad right
+		const auto dpad_left = (joy_buttons & (1 << 14)) != 0;   // D-pad left
+		const auto dpad_up = (joy_buttons & (1 << 12)) != 0;     // D-pad up
+		const auto dpad_down = (joy_buttons & (1 << 13)) != 0;   // D-pad down
+
+		// Edge detection for D-pad
+		const auto dpad_edge_right = (dpad_right && !prev_dpad_right) || (dpad_up && !prev_dpad_right);
+		const auto dpad_edge_left = (dpad_left && !prev_dpad_left) || (dpad_down && !prev_dpad_left);
 
 		auto target_level = 0;
 
@@ -3747,10 +3787,9 @@ int aog_input_floor()
 		}
 		else if (Keyboard[ScanCode::sc_up_arrow] ||
 			Keyboard[ScanCode::sc_right_arrow] ||
-			in_is_binding_pressed(BindingId::e_bi_forward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_next_weapon) ||
-			in_is_binding_pressed(BindingId::e_bi_right) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_right))
+			stick_edge_right ||
+			dpad_edge_right)
 		{
 			cursor_target_floor += 1;
 
@@ -3763,10 +3802,9 @@ int aog_input_floor()
 		}
 		else if (Keyboard[ScanCode::sc_down_arrow] ||
 			Keyboard[ScanCode::sc_left_arrow] ||
-			in_is_binding_pressed(BindingId::e_bi_backward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_previous_weapon) ||
-			in_is_binding_pressed(BindingId::e_bi_left) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_left))
+			stick_edge_left ||
+			dpad_edge_left)
 		{
 			cursor_target_floor -= 1;
 
@@ -3780,7 +3818,8 @@ int aog_input_floor()
 		else if (
 			Keyboard[ScanCode::sc_space] ||
 			Keyboard[ScanCode::sc_mouse_left] ||
-			in_is_binding_pressed(BindingId::e_bi_attack))
+			in_is_binding_pressed(BindingId::e_bi_attack) ||
+			in_is_binding_pressed(BindingId::e_bi_use))
 		{
 			target_level = cursor_target_floor;
 
@@ -3987,6 +4026,10 @@ int aog_input_floor()
 
 			IN_UserInput(210);
 		}
+
+		prev_stick_move = stick_move;
+		prev_dpad_right = dpad_right || dpad_up;
+		prev_dpad_left = dpad_left || dpad_down;
 	}
 
 	IN_ClearKeysDown();
@@ -4001,6 +4044,8 @@ int ps_input_floor()
 	const auto RADAR_FLAGS = OV_KEYS;
 	const auto MAX_TELEPORTS = 20;
 	const auto MAX_MOVE_DELAY = 10;
+	constexpr auto joystick_axis_max = 0x7FFF;
+	constexpr auto joystick_axis_scale = 0x8000;
 
 	int buttonPic = 0;
 	int buttonY = 0;
@@ -4022,6 +4067,10 @@ int ps_input_floor()
 	objtype old_player;
 	bool locked = false;
 	bool buttonsDrawn = false;
+	auto prev_axis_x = 0;
+	auto prev_axis_y = 0;
+	auto prev_dpad_x = 0;
+	auto prev_dpad_y = 0;
 
 	ClearMemory();
 
@@ -4066,12 +4115,64 @@ int ps_input_floor()
 
 		// BBi
 		in_handle_events();
+		PollJoystickButton();
 
-		if (Keyboard[ScanCode::sc_left_arrow])
+		// Read stick position
+		auto axis_x = 0;
+		auto axis_y = 0;
+		if (JoyNumAxes > 1)
+		{
+			const auto raw_axis_x = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
+			const auto raw_axis_y = clamp<int>(IN_GetJoyAxis(1), -joystick_axis_max, joystick_axis_max);
+			const auto dz_factor = clamp<int>(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
+
+			if (raw_axis_x > dz_factor)
+			{
+				axis_x = 1;
+			}
+			else if (raw_axis_x < -dz_factor)
+			{
+				axis_x = -1;
+			}
+
+			if (raw_axis_y > dz_factor)
+			{
+				axis_y = 1;
+			}
+			else if (raw_axis_y < -dz_factor)
+			{
+				axis_y = -1;
+			}
+		}
+
+		// Read D-pad buttons directly
+		bool bt_esc_unused = false;
+		const auto joy_buttons = IN_JoyButtons(bt_esc_unused);
+		auto dpad_x = 0;
+		auto dpad_y = 0;
+		if (joy_buttons & (1 << 15)) dpad_x = 1;   // D-pad right
+		else if (joy_buttons & (1 << 14)) dpad_x = -1;  // D-pad left
+		if (joy_buttons & (1 << 13)) dpad_y = 1;   // D-pad down
+		else if (joy_buttons & (1 << 12)) dpad_y = -1;  // D-pad up
+
+		// Edge detection for stick
+		const auto stick_edge_left = (axis_x < 0 && prev_axis_x >= 0);
+		const auto stick_edge_right = (axis_x > 0 && prev_axis_x <= 0);
+		const auto stick_edge_up = (axis_y < 0 && prev_axis_y >= 0);
+		const auto stick_edge_down = (axis_y > 0 && prev_axis_y <= 0);
+
+		// Edge detection for D-pad
+		const auto dpad_edge_left = (dpad_x < 0 && prev_dpad_x >= 0);
+		const auto dpad_edge_right = (dpad_x > 0 && prev_dpad_x <= 0);
+		const auto dpad_edge_up = (dpad_y < 0 && prev_dpad_y >= 0);
+		const auto dpad_edge_down = (dpad_y > 0 && prev_dpad_y <= 0);
+
+		// Set control directions (keyboard or edge-triggered joystick/dpad)
+		if (Keyboard[ScanCode::sc_left_arrow] || stick_edge_left || dpad_edge_left)
 		{
 			controlx = -1;
 		}
-		else if (Keyboard[ScanCode::sc_right_arrow])
+		else if (Keyboard[ScanCode::sc_right_arrow] || stick_edge_right || dpad_edge_right)
 		{
 			controlx = 1;
 		}
@@ -4080,11 +4181,11 @@ int ps_input_floor()
 			controlx = 0;
 		}
 
-		if (Keyboard[ScanCode::sc_up_arrow])
+		if (Keyboard[ScanCode::sc_up_arrow] || stick_edge_up || dpad_edge_up)
 		{
 			controly = -1;
 		}
-		else if (Keyboard[ScanCode::sc_down_arrow])
+		else if (Keyboard[ScanCode::sc_down_arrow] || stick_edge_down || dpad_edge_down)
 		{
 			controly = 1;
 		}
@@ -4092,6 +4193,12 @@ int ps_input_floor()
 		{
 			controly = 0;
 		}
+
+		// Update previous state
+		prev_axis_x = axis_x;
+		prev_axis_y = axis_y;
+		prev_dpad_x = dpad_x;
+		prev_dpad_y = dpad_y;
 
 		if (Keyboard[ScanCode::sc_escape] || buttonstate[bt_strafe])
 		{
@@ -4102,7 +4209,10 @@ int ps_input_floor()
 
 			break;
 		}
-		else if (Keyboard[ScanCode::sc_return] || buttonstate[bt_attack])
+		else if (Keyboard[ScanCode::sc_return] ||
+			buttonstate[bt_attack] ||
+			in_is_binding_pressed(BindingId::e_bi_use) ||
+			in_is_binding_pressed(BindingId::e_bi_attack))
 		{
 			if (locked)
 			{
