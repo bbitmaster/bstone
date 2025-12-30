@@ -1,0 +1,397 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>BStone</title>
+  <style>
+    :root { --app-height: 100vh; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: var(--app-height);
+      background: #000;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+    }
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #888;
+      font-family: sans-serif;
+      font-size: 18px;
+      text-align: center;
+    }
+    #loading .hint {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #555;
+    }
+    #click-to-start {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      cursor: pointer;
+    }
+    #click-to-start .message {
+      color: #fff;
+      font-family: sans-serif;
+      font-size: 24px;
+      text-align: center;
+    }
+    #click-to-start .hint {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #888;
+    }
+    #game-select {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 110;
+      color: #fff;
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #game-select .title {
+      font-size: 22px;
+      margin-bottom: 14px;
+    }
+    #game-select .buttons {
+      display: flex;
+      gap: 12px;
+    }
+    #game-select .tools {
+      margin-top: 18px;
+    }
+    #game-select button {
+      background: #222;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    #game-select button:hover {
+      background: #333;
+    }
+    #fullscreen-btn {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 120;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      border: 1px solid #666;
+      padding: 8px 10px;
+      font-family: sans-serif;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: none;
+    }
+    #fullscreen-btn:hover {
+      background: rgba(0, 0, 0, 0.75);
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    Loading...
+    <div class="hint">Please wait while game data is loaded</div>
+  </div>
+  <div id="game-select" style="display:none;">
+    <div class="title">Select Game</div>
+    <div class="buttons">
+      <button data-game="aog">Aliens of Gold</button>
+      <button data-game="ps">Planet Strike</button>
+    </div>
+    <div class="tools">
+      <button id="reset-config">Reset Config</button>
+    </div>
+  </div>
+  <div id="click-to-start" style="display:none;">
+    <div>
+      <div class="message">Click to Start</div>
+      <div class="hint">Click anywhere to enable audio and input</div>
+    </div>
+  </div>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="1"></canvas>
+  <button id="fullscreen-btn" type="button">Fullscreen</button>
+  <script>
+    var gameStarted = false;
+
+    var pendingReset = false;
+
+    function getViewportSize() {
+      var vv = window.visualViewport;
+      var width = vv ? vv.width : window.innerWidth;
+      var height = vv ? vv.height : window.innerHeight;
+      return {
+        width: Math.max(1, Math.floor(width)),
+        height: Math.max(1, Math.floor(height))
+      };
+    }
+
+    function updateAppHeight() {
+      var size = getViewportSize();
+      document.documentElement.style.setProperty('--app-height', size.height + 'px');
+    }
+
+    function resizeCanvas() {
+      updateAppHeight();
+      if (typeof Module === 'undefined' || !Module.canvas) {
+        return;
+      }
+      var size = getViewportSize();
+      var width = Math.max(1, Math.floor(size.width));
+      var height = Math.max(1, Math.floor(size.height));
+      Module.canvas.style.width = width + 'px';
+      Module.canvas.style.height = height + 'px';
+      Module.canvas.width = width;
+      Module.canvas.height = height;
+    }
+
+    function isFullscreen() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    function updateFullscreenButton() {
+      var button = document.getElementById('fullscreen-btn');
+      if (!button) {
+        return;
+      }
+      button.textContent = isFullscreen() ? 'Exit Fullscreen' : 'Fullscreen';
+    }
+
+    function requestFullscreen() {
+      var elem = document.documentElement;
+      var request =
+        elem.requestFullscreen ||
+        elem.webkitRequestFullscreen ||
+        elem.mozRequestFullScreen ||
+        elem.msRequestFullscreen;
+      if (request) {
+        request.call(elem);
+      }
+    }
+
+    function exitFullscreen() {
+      var exit =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.mozCancelFullScreen ||
+        document.msExitFullscreen;
+      if (exit) {
+        exit.call(document);
+      }
+    }
+
+    function getResetParam() {
+      var params = new URLSearchParams(window.location.search);
+      return params.get('reset');
+    }
+
+    function clearResetParam() {
+      var params = new URLSearchParams(window.location.search);
+      if (params.has('reset')) {
+        params.delete('reset');
+        var query = params.toString();
+        var newUrl = window.location.pathname + (query ? '?' + query : '');
+        history.replaceState(null, '', newUrl);
+      }
+    }
+
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      locateFile: function (path) { return path; },
+      print: function (text) { console.log(text); },
+      printErr: function (text) { console.error(text); },
+      onAbort: function (reason) { console.error('Emscripten abort:', reason); },
+      preRun: [function () {
+        var resetRequested = getResetParam() === '1';
+        Module.addRunDependency('idbfs');
+        try { FS.mkdir('/user'); } catch (e) {}
+        try { FS.mount(IDBFS, {}, '/user'); } catch (e) {}
+        FS.syncfs(true, function (err) {
+          if (resetRequested) {
+            try { FS.unlink('/user/bstone_config.txt'); } catch (e) {}
+            FS.syncfs(false, function () {
+              Module.removeRunDependency('idbfs');
+            });
+          } else {
+            Module.removeRunDependency('idbfs');
+          }
+        });
+      }],
+      onRuntimeInitialized: function () {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('click-to-start').style.display = 'flex';
+        resizeCanvas();
+        clearResetParam();
+      }
+    };
+
+    function getGameParam() {
+      var params = new URLSearchParams(window.location.search);
+      var game = params.get('game');
+      if (!game) {
+        return '';
+      }
+      return game.toLowerCase();
+    }
+
+    function setGameArgs(game) {
+      var args = ['--profile_dir', '/user/'];
+      if (game === 'ps') {
+        args.push('--ps');
+      } else if (game === 'aog_sw') {
+        args.push('--aog_sw');
+      } else if (game === 'aog') {
+        args.push('--aog');
+      }
+      Module.arguments = args;
+    }
+
+    function loadGameScript() {
+      var script = document.createElement('script');
+      script.src = 'bstone.js';
+      document.body.appendChild(script);
+    }
+
+    function selectGame(game) {
+      var params = new URLSearchParams(window.location.search);
+      params.set('game', game);
+      if (pendingReset) {
+        params.set('reset', '1');
+      }
+      window.location.search = params.toString();
+    }
+
+    var initialGame = getGameParam();
+    if (initialGame) {
+      setGameArgs(initialGame);
+      loadGameScript();
+    } else {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('game-select').style.display = 'flex';
+    }
+
+    document.getElementById('game-select').addEventListener('click', function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.game) {
+        selectGame(e.target.dataset.game);
+      }
+    });
+
+    document.getElementById('reset-config').addEventListener('click', function () {
+      if (confirm('Reset all game configuration? This will clear bstone_config.txt.')) {
+        pendingReset = true;
+        this.textContent = 'Reset Queued';
+      }
+    });
+
+    // Click to start - needed to enable audio on modern browsers
+    document.getElementById('click-to-start').addEventListener('click', function () {
+      if (!gameStarted) {
+        gameStarted = true;
+        document.getElementById('click-to-start').style.display = 'none';
+        document.getElementById('canvas').focus();
+        document.getElementById('fullscreen-btn').style.display = 'block';
+        // Resume audio context if it exists
+        if (typeof Module !== 'undefined' && Module.SDL2 && Module.SDL2.audioContext) {
+          Module.SDL2.audioContext.resume();
+        }
+      }
+    });
+
+    // Focus canvas when clicking on it
+    document.getElementById('canvas').addEventListener('click', function () {
+      this.focus();
+    });
+
+    document.getElementById('fullscreen-btn').addEventListener('click', function () {
+      if (isFullscreen()) {
+        exitFullscreen();
+      } else {
+        requestFullscreen();
+      }
+    });
+
+    document.addEventListener('fullscreenchange', function () {
+      updateFullscreenButton();
+      resizeCanvas();
+    });
+    document.addEventListener('webkitfullscreenchange', function () {
+      updateFullscreenButton();
+      resizeCanvas();
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', resizeCanvas);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeCanvas);
+    }
+    resizeCanvas();
+
+    window.addEventListener('error', function (event) {
+      console.error('Window error:', event.message, event.error);
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+      console.error('Unhandled rejection:', event.reason);
+    });
+
+    var syncInProgress = false;
+    function syncToIdbfs() {
+      if (typeof FS === 'undefined' || syncInProgress) {
+        return;
+      }
+      syncInProgress = true;
+      try {
+        FS.syncfs(false, function () {
+          syncInProgress = false;
+        });
+      } catch (e) {
+        syncInProgress = false;
+      }
+    }
+    if (typeof Module !== 'undefined') {
+      Module.bstoneSyncToIdbfs = syncToIdbfs;
+    }
+
+    // Periodic sync improves save persistence if the tab closes abruptly.
+    setInterval(syncToIdbfs, 10000);
+    window.addEventListener('beforeunload', syncToIdbfs);
+    window.addEventListener('pagehide', syncToIdbfs);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        syncToIdbfs();
+      }
+    });
+  </script>
+</body>
+</html>
