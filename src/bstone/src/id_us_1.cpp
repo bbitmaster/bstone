@@ -69,6 +69,7 @@ int WindowH;
 
 US_CursorStruct US_CustomCursor; // JAM
 bool use_custom_cursor = false; // JAM
+bool us_last_confirm_was_joystick = false; // Set when US_LineInput confirm came from joystick
 
 // Internal variables
 
@@ -442,6 +443,7 @@ bool US_LineInput(
 	lasttime = TimeCount;
 	LastASCII = key_None;
 	LastScan = ScanCode::sc_none;
+	us_last_confirm_was_joystick = false;
 
 	while (!done)
 	{
@@ -481,6 +483,7 @@ bool US_LineInput(
 			if (is_pressed && !was_pressed)
 			{
 				sc = ScanCode::sc_return;
+				us_last_confirm_was_joystick = true;
 			}
 		}
 #endif

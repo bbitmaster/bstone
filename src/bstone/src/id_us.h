@@ -135,6 +135,9 @@ bool US_LineInput(
 	int maxchars,
 	int maxwidth);
 
+// Flag set when US_LineInput confirmation came from joystick button
+extern bool us_last_confirm_was_joystick;
+
 int US_RndT();
 
 void USL_PrintInCenter(const char* s, Rect r);
