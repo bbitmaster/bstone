@@ -38,7 +38,7 @@ Targets:
 ]]
 
 
-cmake_minimum_required (VERSION 3.1.3 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
 
 set (SDL2W_VERSION "1.0.4")
 message (STATUS "[SDL2W] Version: ${SDL2W_VERSION}")
