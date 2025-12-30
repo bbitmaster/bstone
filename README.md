@@ -26,8 +26,9 @@ Contents
    8.4 Supported file formats  
    8.5 File format search order
 9. Taking screenshots
-10. Compiling  
+10. Compiling
    10.1. Generic instructions for Linux-based system or build environment (MinGW)
+   10.2. Emscripten (Web/Browser)
 11. Command-line options
 12. Cheat key
 13. Debug keys
@@ -426,6 +427,9 @@ Supported format: [PNG](http://wikipedia.org/wiki/Portable_Network_Graphics)
 10 - Compiling
 =============
 
+   10.1 Generic instructions for Linux-based system or build environment (MinGW)
+   10.2 Emscripten (Web/Browser)
+
 Minimum requirements:
 
 * C++14 compatible compiler.
@@ -502,6 +506,81 @@ Notes:
 `cmake --build . --target install`
 
 6. On success you will find executable and text files in the directory `~/bstone-x.y.z/build/install`.
+
+
+10.2 - Emscripten (Web/Browser)
+===============================
+
+Build BStone to run in a web browser using WebAssembly and WebGL.
+
+**Requirements:**
+* [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html)
+* Game data files (see "Required assets" section)
+
+**Build steps:**
+
+1. Install and activate Emscripten SDK:
+```bash
+# Follow instructions at https://emscripten.org/docs/getting_started/downloads.html
+source /path/to/emsdk/emsdk_env.sh
+```
+
+2. Create build directory:
+```bash
+mkdir -p build/emscripten
+cd build/emscripten
+```
+
+3. Configure with CMake:
+```bash
+emcmake cmake ../.. \
+  -DBSTONE_INTERNAL_SDL2=ON \
+  -DBSTONE_ENABLE_VULKAN=OFF \
+  -DBSTONE_ENABLE_OPENAL=OFF \
+  -DBSTONE_TESTS=OFF \
+  -DBSTONE_EMSCRIPTEN_PRELOAD_DIR=/path/to/game/data \
+  -DBSTONE_EMSCRIPTEN_PRELOAD_MOUNT=/data \
+  -DCMAKE_BUILD_TYPE=Release
+```
+
+Replace `/path/to/game/data` with the directory containing your game files (*.BS6, *.VSI, etc.).
+
+Optional CMake flags for debugging:
+* `-DBSTONE_EMSCRIPTEN_EXCEPTION_CATCHING=ON` - Enable C++ exception catching
+* `-DBSTONE_EMSCRIPTEN_ASSERTIONS=ON` - Enable JavaScript assertions
+
+4. Build:
+```bash
+emmake make -j
+```
+
+5. Output files will be in `build/emscripten/src/bstone/`:
+   * `bstone.html` - Main HTML page
+   * `bstone.js` - JavaScript glue code
+   * `bstone.wasm` - WebAssembly binary
+   * `bstone.data` - Packaged game assets
+
+**Running locally:**
+
+Start a local web server in the output directory:
+```bash
+cd build/emscripten/src/bstone
+python3 -m http.server 8000
+```
+
+Open `http://localhost:8000/bstone.html` in your browser.
+
+**URL parameters:**
+* `?game=aog` - Start Aliens of Gold
+* `?game=ps` - Start Planet Strike
+* `?game=aog_sw` - Start Aliens of Gold (shareware)
+* `?reset=1` - Reset configuration on startup
+
+**Notes:**
+* Saves and configuration persist in browser storage (IndexedDB).
+* Gamepad support uses W3C Gamepad API (Start=menu, A=use, B/X=cycle weapons, RB=attack, Select=stats).
+* The game adapts to browser window size; resize the window to change resolution.
+* Click the game canvas to capture keyboard/mouse input.
 
 
 11 - Command-line options
