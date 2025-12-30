@@ -65,6 +65,7 @@ int WindowH;
 
 US_CursorStruct US_CustomCursor; // JAM
 bool use_custom_cursor = false; // JAM
+bool us_last_confirm_was_joystick = false; // Set when US_LineInput confirm came from joystick
 
 // Internal variables
 
@@ -438,6 +439,7 @@ bool US_LineInput(
 	lasttime = TimeCount;
 	LastASCII = key_None;
 	LastScan = ScanCode::sc_none;
+	us_last_confirm_was_joystick = false;
 
 	while (!done)
 	{
@@ -460,6 +462,25 @@ bool US_LineInput(
 		LastScan = ScanCode::sc_none;
 		c = LastASCII;
 		LastASCII = key_None;
+
+		// Check gamepad A button (0) or Start button (9) as Enter
+		// Use static to track button state for edge detection (trigger on press, not hold)
+		{
+			static int prev_joy_buttons = 0;
+			bool bt_esc_unused = false;
+			int joy_buttons = IN_JoyButtons(bt_esc_unused);
+			const int confirm_mask = (1 << 0) | (1 << 9);  // A=0, Start=9
+			bool is_pressed = (joy_buttons & confirm_mask) != 0;
+			bool was_pressed = (prev_joy_buttons & confirm_mask) != 0;
+			prev_joy_buttons = joy_buttons;
+
+			// Only trigger on button-down edge (was not pressed, now is pressed)
+			if (is_pressed && !was_pressed)
+			{
+				sc = ScanCode::sc_return;
+				us_last_confirm_was_joystick = true;
+			}
+		}
 
 		switch (sc)
 		{

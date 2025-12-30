@@ -3354,6 +3354,8 @@ std::int16_t CP_SaveGame(
 			ShootSnd();
 
 			strcpy(input, &SaveGameNames[which][0]);
+			char original_name[GAME_DESCRIPTION_LEN + 1];
+			strcpy(original_name, input);
 
 			auto name = get_saved_game_base_name();
 			name += static_cast<char>('0' + which);
@@ -3366,6 +3368,39 @@ std::int16_t CP_SaveGame(
 
 			if (US_LineInput(LSM_X + LSItems.indent + 2, LSM_Y + which * LSItems.y_spacing, input, input, true, GAME_DESCRIPTION_LEN, LSM_W - LSItems.indent - 10))
 			{
+				// Generate new default name if:
+				// - Name was cleared (empty), OR
+				// - Name unchanged AND confirmed via joystick (controller users can't edit text)
+				const bool name_unchanged = strcmp(input, original_name) == 0;
+				if (input[0] == '\0' || (name_unchanged && us_last_confirm_was_joystick))
+				{
+					std::time_t now = std::time(nullptr);
+					std::tm* local_time = std::localtime(&now);
+					if (local_time)
+					{
+						char date_time[32];
+						std::strftime(date_time, sizeof(date_time), "%m/%d/%y %H:%M", local_time);
+
+						// Format: "E1L2 12/30/25 14:30" for AOG, "L2 12/30/25 14:30" for PS
+						// Note: AOG mapon is 1-indexed, PS mapon is 0-indexed, episode is 0-indexed
+						const auto& assets_info = get_assets_info();
+						if (assets_info.is_ps())
+						{
+							std::snprintf(input, GAME_DESCRIPTION_LEN + 1, "L%d %s",
+								gamestate.mapon + 1, date_time);
+						}
+						else
+						{
+							std::snprintf(input, GAME_DESCRIPTION_LEN + 1, "E%dL%d %s",
+								gamestate.episode + 1, gamestate.mapon, date_time);
+						}
+					}
+					else
+					{
+						strcpy(input, "UNNAMED SAVE");
+					}
+				}
+
 				SaveGamesAvail[which] = 1;
 				strcpy(&SaveGameNames[which][0], input);
 
