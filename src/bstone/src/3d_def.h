@@ -3972,6 +3972,9 @@ void gp_vanilla_fizzle_fx(bool is_enabled);
 bool gp_ps_map_in_stats() noexcept;
 void gp_ps_map_in_stats(bool is_enabled);
 
+bool gp_show_pushwalls_on_radar() noexcept;
+void gp_show_pushwalls_on_radar(bool is_enabled);
+
 bool am_rotatable() noexcept;
 void am_rotatable(bool is_enable);
 

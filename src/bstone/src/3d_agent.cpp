@@ -8,6 +8,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <cmath>
 #include <cstring>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include <algorithm>
 #include <array>
@@ -3701,6 +3704,11 @@ int aog_input_floor()
 	auto button_index = 0;
 	auto is_button_pressed = false;
 	auto message = &messages[0];
+	auto move_delay = 0;
+
+	constexpr auto joystick_axis_max = 0x7FFF;
+	constexpr auto joystick_axis_scale = 0x8000;
+	constexpr auto max_move_delay = 30;
 
 	PresenterInfo pi{};
 	pi.xl = 24;
@@ -3740,6 +3748,42 @@ int aog_input_floor()
 			result = -1;
 		}
 
+		auto axis_move = 0;
+
+		if (JoyNumAxes > 0)
+		{
+			const auto raw_axis = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
+			const auto dz_factor = clamp<int>(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
+
+			if (raw_axis > dz_factor)
+			{
+				axis_move = 1;
+			}
+			else if (raw_axis < -dz_factor)
+			{
+				axis_move = -1;
+			}
+		}
+
+		if (Keyboard[ScanCode::sc_joy_btn15])
+		{
+			axis_move = 1;
+		}
+		else if (Keyboard[ScanCode::sc_joy_btn14])
+		{
+			axis_move = -1;
+		}
+
+		if (move_delay > 0)
+		{
+			move_delay -= static_cast<int>(tics);
+
+			if (move_delay < 0)
+			{
+				move_delay = 0;
+			}
+		}
+
 		auto target_level = 0;
 
 		if (false)
@@ -3750,7 +3794,8 @@ int aog_input_floor()
 			in_is_binding_pressed(BindingId::e_bi_forward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_next_weapon) ||
 			in_is_binding_pressed(BindingId::e_bi_right) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_right))
+			in_is_binding_pressed(BindingId::e_bi_strafe_right) ||
+			(axis_move > 0 && move_delay == 0))
 		{
 			cursor_target_floor += 1;
 
@@ -3760,13 +3805,19 @@ int aog_input_floor()
 			}
 
 			draw_cursor = true;
+
+			if (axis_move > 0)
+			{
+				move_delay = max_move_delay;
+			}
 		}
 		else if (Keyboard[ScanCode::sc_down_arrow] ||
 			Keyboard[ScanCode::sc_left_arrow] ||
 			in_is_binding_pressed(BindingId::e_bi_backward) ||
 			in_is_binding_pressed(BindingId::e_bi_cycle_previous_weapon) ||
 			in_is_binding_pressed(BindingId::e_bi_left) ||
-			in_is_binding_pressed(BindingId::e_bi_strafe_left))
+			in_is_binding_pressed(BindingId::e_bi_strafe_left) ||
+			(axis_move < 0 && move_delay == 0))
 		{
 			cursor_target_floor -= 1;
 
@@ -3776,11 +3827,17 @@ int aog_input_floor()
 			}
 
 			draw_cursor = true;
+
+			if (axis_move < 0)
+			{
+				move_delay = max_move_delay;
+			}
 		}
 		else if (
 			Keyboard[ScanCode::sc_space] ||
 			Keyboard[ScanCode::sc_mouse_left] ||
-			in_is_binding_pressed(BindingId::e_bi_attack))
+			in_is_binding_pressed(BindingId::e_bi_attack) ||
+			in_is_binding_pressed(BindingId::e_bi_use))
 		{
 			target_level = cursor_target_floor;
 
@@ -4000,7 +4057,7 @@ int ps_input_floor()
 
 	const auto RADAR_FLAGS = OV_KEYS;
 	const auto MAX_TELEPORTS = 20;
-	const auto MAX_MOVE_DELAY = 10;
+	const auto MAX_MOVE_DELAY = 30;
 
 	int buttonPic = 0;
 	int buttonY = 0;
@@ -4067,11 +4124,11 @@ int ps_input_floor()
 		// BBi
 		in_handle_events();
 
-		if (Keyboard[ScanCode::sc_left_arrow])
+		if (Keyboard[ScanCode::sc_left_arrow] || Keyboard[ScanCode::sc_joy_btn14])
 		{
 			controlx = -1;
 		}
-		else if (Keyboard[ScanCode::sc_right_arrow])
+		else if (Keyboard[ScanCode::sc_right_arrow] || Keyboard[ScanCode::sc_joy_btn15])
 		{
 			controlx = 1;
 		}
@@ -4080,11 +4137,11 @@ int ps_input_floor()
 			controlx = 0;
 		}
 
-		if (Keyboard[ScanCode::sc_up_arrow])
+		if (Keyboard[ScanCode::sc_up_arrow] || Keyboard[ScanCode::sc_joy_btn12])
 		{
 			controly = -1;
 		}
-		else if (Keyboard[ScanCode::sc_down_arrow])
+		else if (Keyboard[ScanCode::sc_down_arrow] || Keyboard[ScanCode::sc_joy_btn13])
 		{
 			controly = 1;
 		}
@@ -4584,6 +4641,9 @@ std::uint8_t ShowRatio(
 		while (sd_is_playing_any_ui_sound() && LastScan == ScanCode::sc_none)
 		{
 			in_handle_events();
+#ifdef __EMSCRIPTEN__
+			emscripten_sleep(0);
+#endif
 		}
 	}
 

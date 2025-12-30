@@ -124,6 +124,7 @@ enum sw2_labels
 	SW2_NO_WEAPON_BOBBING,
 	SW2_VANILLA_FIZZLE_FX,
 	SW2_PS_MAP_IN_STATS,
+	SW2_SHOW_PUSHWALLS_ON_RADAR,
 }; // sw2_labels
 
 enum MenuVideoLables
@@ -425,7 +426,7 @@ CP_iteminfo SwitchItems = {MENU_X, 0, 0, 0, 0, 9, {87, -1, 132, 7, 1}};
 CP_iteminfo video_items = {MENU_X, MENU_Y + 30, 5, 0, 0, 9, {77, -1, 154, 7, 1}};
 CP_iteminfo video_mode_items = {MENU_X - 31, MENU_Y + 10, 8, 0, 0, 9, {67, -1, 184, 7, 1}};
 CP_iteminfo texturing_items = {MENU_X, MENU_Y + 10, 7, 0, 0, 9, {77, -1, 154, 7, 1}};
-CP_iteminfo switches2_items = {MENU_X, MENU_Y + 30, 5, 0, 0, 9, {87, -1, 132, 7, 1}};
+CP_iteminfo switches2_items = {MENU_X, MENU_Y + 30, 6, 0, 0, 9, {87, -1, 132, 7, 1}};
 // BBi
 
 
@@ -500,6 +501,7 @@ CP_itemtype switch2_menu[] =
 	{AT_ENABLED, "NO WEAPON BOBBING", 0},
 	{AT_ENABLED, "VANILLA FIZZLE FX", 0},
 	{AT_ENABLED, "[PS] MAP IN STATS", 0},
+	{AT_ENABLED, "SHOW PUSHWALLS ON RADAR", 0},
 };
 
 CP_itemtype NewEmenu[] = {
@@ -6293,6 +6295,7 @@ void draw_switch2_description(
 		"TOGGLES WEAPON BOBBING",
 		"TOGGLES VANILLA FIZZLE FX",
 		"TOGGLES MAP IN STATS (PLANET STRIKE)",
+		"TOGGLES PUSHWALLS ON RADAR",
 	};
 
 	const auto& assets_info = get_assets_info();
@@ -6376,6 +6379,13 @@ void draw_all_switch2_lights(
 					shape += 1;
 				}
 				break;
+
+			case SW2_SHOW_PUSHWALLS_ON_RADAR:
+				if (gp_show_pushwalls_on_radar())
+				{
+					shape += 1;
+				}
+				break;
 			}
 
 			VWB_DrawPic(switches2_items.x - 16, switches2_items.y + (i * switches2_items.y_spacing) - 1, shape);
@@ -6443,6 +6453,12 @@ void cp_switches2(
 
 		case SW2_PS_MAP_IN_STATS:
 			gp_ps_map_in_stats(!gp_ps_map_in_stats());
+			ShootSnd();
+			draw_switch2_menu();
+			break;
+
+		case SW2_SHOW_PUSHWALLS_ON_RADAR:
+			gp_show_pushwalls_on_radar(!gp_show_pushwalls_on_radar());
 			ShootSnd();
 			draw_switch2_menu();
 			break;

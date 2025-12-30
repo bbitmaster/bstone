@@ -11121,6 +11121,17 @@ auto gp_ps_map_in_stats_cvar = bstone::CVar{
 	bstone::CVarFlags::archive,
 	gp_ps_map_in_stats_default};
 
+// gp_show_pushwalls_on_radar
+
+constexpr auto gp_show_pushwalls_on_radar_cvar_name = bstone::StringView{"gp_show_pushwalls_on_radar"};
+constexpr auto gp_show_pushwalls_on_radar_default = true;
+
+auto gp_show_pushwalls_on_radar_cvar = bstone::CVar{
+	bstone::CVarBoolTag{},
+	gp_show_pushwalls_on_radar_cvar_name,
+	bstone::CVarFlags::archive,
+	gp_show_pushwalls_on_radar_default};
+
 } // namespace
 
 void gp_initialize_cvars(bstone::CVarMgr& cvar_mgr)
@@ -11139,6 +11150,7 @@ void gp_initialize_cvars(bstone::CVarMgr& cvar_mgr)
 	cvar_mgr.add(gp_no_weapon_bobbing_cvar);
 	cvar_mgr.add(gp_vanilla_fizzle_fx_cvar);
 	cvar_mgr.add(gp_ps_map_in_stats_cvar);
+	cvar_mgr.add(gp_show_pushwalls_on_radar_cvar);
 }
 
 namespace {
@@ -11299,6 +11311,16 @@ bool gp_ps_map_in_stats() noexcept
 void gp_ps_map_in_stats(bool is_enabled)
 {
 	gp_ps_map_in_stats_cvar.set_bool(is_enabled);
+}
+
+bool gp_show_pushwalls_on_radar() noexcept
+{
+	return gp_show_pushwalls_on_radar_cvar.get_bool();
+}
+
+void gp_show_pushwalls_on_radar(bool is_enabled)
+{
+	gp_show_pushwalls_on_radar_cvar.set_bool(is_enabled);
 }
 
 bool am_rotatable() noexcept

@@ -1991,7 +1991,7 @@ void ShowOverhead(
 					}
 
 					if ((ExtraRadarFlags & OV_PUSHWALLS) != 0 ||
-						(assets_info.is_ps() && zoom == 4 && (flags & OV_PUSHWALLS) != 0))
+						gp_show_pushwalls_on_radar())
 					{
 						auto iconnum = mapsegs[1][farmapylookup[my] + mx];
 
