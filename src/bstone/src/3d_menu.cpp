@@ -1955,7 +1955,11 @@ void US_ControlPanel(
 			}
 			else
 			{
+#ifdef __EMSCRIPTEN__
+				// Ignore "back" on web builds.
+#else
 				CP_Quit();
+#endif
 			}
 			break;
 
@@ -3726,12 +3730,18 @@ void CustomControls(
 
 void CP_Quit()
 {
+#ifdef __EMSCRIPTEN__
+	Message("CAN NOT EXIT\nIN WEB VERSION.");
+	IN_Ack();
+	DrawMainMenu();
+#else
 	if (Confirm(QuitToDosStr))
 	{
 		ExitGame();
 	}
 
 	DrawMainMenu();
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -3935,6 +3945,13 @@ std::int16_t HandleMenu(
 	ControlInfo ci;
 	bool is_west_pressed = false;
 	bool is_east_pressed = false;
+	bool was_button0 = false;
+	bool was_button1 = false;
+#ifdef __EMSCRIPTEN__
+	const bool ignore_joy_back = (items == MainMenu);
+#else
+	const bool ignore_joy_back = false;
+#endif
 
 	which = item_i->curpos;
 	x = item_i->x;
@@ -3968,6 +3985,9 @@ std::int16_t HandleMenu(
 	exit = 0;
 	TimeCount = 0;
 	IN_ClearKeysDown();
+	ReadAnyControl(&ci);
+	was_button0 = (ci.button0 != 0);
+	was_button1 = (ci.button1 != 0);
 
 	do
 	{
@@ -4066,6 +4086,10 @@ std::int16_t HandleMenu(
 		//
 
 		ReadAnyControl(&ci);
+		const bool button0_pressed = (ci.button0 != 0) && !was_button0;
+		const bool button1_pressed = (ci.button1 != 0) && !was_button1;
+		was_button0 = (ci.button0 != 0);
+		was_button1 = (ci.button1 != 0);
 
 		switch (ci.dir)
 		{
@@ -4164,12 +4188,12 @@ std::int16_t HandleMenu(
 			break;
 		}
 
-		if (ci.button0 || Keyboard[ScanCode::sc_space] || Keyboard[ScanCode::sc_return])
+		if (button0_pressed || Keyboard[ScanCode::sc_space] || Keyboard[ScanCode::sc_return])
 		{
 			exit = 1;
 		}
 
-		if (ci.button1 || Keyboard[ScanCode::sc_escape])
+		if ((!ignore_joy_back && button1_pressed) || Keyboard[ScanCode::sc_escape])
 		{
 			exit = 2;
 		}
