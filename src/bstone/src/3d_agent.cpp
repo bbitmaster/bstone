@@ -3705,8 +3705,10 @@ int aog_input_floor()
 	auto is_button_pressed = false;
 	auto message = &messages[0];
 	auto prev_stick_move = 0;
-	auto prev_dpad_right = false;
+	auto prev_dpad_up = false;
+	auto prev_dpad_down = false;
 	auto prev_dpad_left = false;
+	auto prev_dpad_right = false;
 
 	constexpr auto joystick_axis_max = 0x7FFF;
 	constexpr auto joystick_axis_scale = 0x8000;
@@ -3772,16 +3774,25 @@ int aog_input_floor()
 		const auto stick_edge_left = (stick_move < 0 && prev_stick_move >= 0);
 
 		// Read D-pad buttons directly from joystick (bypass Keyboard[] edge detection issues)
+		// W3C Gamepad API: up=12, down=13, left=14, right=15
+		// SDL GameController: up=11, down=12, left=13, right=14
 		bool bt_esc_unused = false;
 		const auto joy_buttons = IN_JoyButtons(bt_esc_unused);
-		const auto dpad_right = (joy_buttons & (1 << 15)) != 0;  // D-pad right
-		const auto dpad_left = (joy_buttons & (1 << 14)) != 0;   // D-pad left
-		const auto dpad_up = (joy_buttons & (1 << 12)) != 0;     // D-pad up
-		const auto dpad_down = (joy_buttons & (1 << 13)) != 0;   // D-pad down
+#ifdef __EMSCRIPTEN__
+		const auto dpad_up = (joy_buttons & (1 << 12)) != 0;
+		const auto dpad_down = (joy_buttons & (1 << 13)) != 0;
+		const auto dpad_left = (joy_buttons & (1 << 14)) != 0;
+		const auto dpad_right = (joy_buttons & (1 << 15)) != 0;
+#else
+		const auto dpad_up = (joy_buttons & (1 << 11)) != 0;
+		const auto dpad_down = (joy_buttons & (1 << 12)) != 0;
+		const auto dpad_left = (joy_buttons & (1 << 13)) != 0;
+		const auto dpad_right = (joy_buttons & (1 << 14)) != 0;
+#endif
 
-		// Edge detection for D-pad
-		const auto dpad_edge_right = (dpad_right && !prev_dpad_right) || (dpad_up && !prev_dpad_right);
-		const auto dpad_edge_left = (dpad_left && !prev_dpad_left) || (dpad_down && !prev_dpad_left);
+		// Edge detection for D-pad (right/up = next, left/down = prev)
+		const auto dpad_edge_right = (dpad_right && !prev_dpad_right) || (dpad_up && !prev_dpad_up);
+		const auto dpad_edge_left = (dpad_left && !prev_dpad_left) || (dpad_down && !prev_dpad_down);
 
 		auto target_level = 0;
 
@@ -4031,8 +4042,10 @@ int aog_input_floor()
 		}
 
 		prev_stick_move = stick_move;
-		prev_dpad_right = dpad_right || dpad_up;
-		prev_dpad_left = dpad_left || dpad_down;
+		prev_dpad_up = dpad_up;
+		prev_dpad_down = dpad_down;
+		prev_dpad_left = dpad_left;
+		prev_dpad_right = dpad_right;
 	}
 
 	IN_ClearKeysDown();
@@ -4072,6 +4085,8 @@ int ps_input_floor()
 	bool buttonsDrawn = false;
 	auto prev_axis_x = 0;
 	auto prev_axis_y = 0;
+	auto prev_dpad_x = 0;
+	auto prev_dpad_y = 0;
 
 	ClearMemory();
 
@@ -4118,9 +4133,9 @@ int ps_input_floor()
 		in_handle_events();
 		PollJoystickButton();
 
+		// Read stick position
 		auto axis_x = 0;
 		auto axis_y = 0;
-
 		if (JoyNumAxes > 1)
 		{
 			const auto raw_axis_x = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
@@ -4146,22 +4161,43 @@ int ps_input_floor()
 			}
 		}
 
-		const auto axis_edge_x = (axis_x != 0 && (prev_axis_x == 0 || axis_x != prev_axis_x));
-		const auto axis_edge_y = (axis_y != 0 && (prev_axis_y == 0 || axis_y != prev_axis_y));
+		// Read D-pad buttons directly
+		// W3C Gamepad API: up=12, down=13, left=14, right=15
+		// SDL GameController: up=11, down=12, left=13, right=14
+		bool bt_esc_unused = false;
+		const auto joy_buttons = IN_JoyButtons(bt_esc_unused);
+		auto dpad_x = 0;
+		auto dpad_y = 0;
+#ifdef __EMSCRIPTEN__
+		if (joy_buttons & (1 << 15)) dpad_x = 1;   // D-pad right
+		else if (joy_buttons & (1 << 14)) dpad_x = -1;  // D-pad left
+		if (joy_buttons & (1 << 13)) dpad_y = 1;   // D-pad down
+		else if (joy_buttons & (1 << 12)) dpad_y = -1;  // D-pad up
+#else
+		if (joy_buttons & (1 << 14)) dpad_x = 1;   // D-pad right
+		else if (joy_buttons & (1 << 13)) dpad_x = -1;  // D-pad left
+		if (joy_buttons & (1 << 12)) dpad_y = 1;   // D-pad down
+		else if (joy_buttons & (1 << 11)) dpad_y = -1;  // D-pad up
+#endif
 
-		if (axis_edge_x && axis_x < 0)
+		// Edge detection for stick
+		const auto stick_edge_left = (axis_x < 0 && prev_axis_x >= 0);
+		const auto stick_edge_right = (axis_x > 0 && prev_axis_x <= 0);
+		const auto stick_edge_up = (axis_y < 0 && prev_axis_y >= 0);
+		const auto stick_edge_down = (axis_y > 0 && prev_axis_y <= 0);
+
+		// Edge detection for D-pad
+		const auto dpad_edge_left = (dpad_x < 0 && prev_dpad_x >= 0);
+		const auto dpad_edge_right = (dpad_x > 0 && prev_dpad_x <= 0);
+		const auto dpad_edge_up = (dpad_y < 0 && prev_dpad_y >= 0);
+		const auto dpad_edge_down = (dpad_y > 0 && prev_dpad_y <= 0);
+
+		// Set control directions (keyboard or edge-triggered joystick/dpad)
+		if (Keyboard[ScanCode::sc_left_arrow] || stick_edge_left || dpad_edge_left)
 		{
 			controlx = -1;
 		}
-		else if (axis_edge_x && axis_x > 0)
-		{
-			controlx = 1;
-		}
-		else if (Keyboard[ScanCode::sc_left_arrow] || Keyboard[ScanCode::sc_joy_btn14])
-		{
-			controlx = -1;
-		}
-		else if (Keyboard[ScanCode::sc_right_arrow] || Keyboard[ScanCode::sc_joy_btn15])
+		else if (Keyboard[ScanCode::sc_right_arrow] || stick_edge_right || dpad_edge_right)
 		{
 			controlx = 1;
 		}
@@ -4170,19 +4206,11 @@ int ps_input_floor()
 			controlx = 0;
 		}
 
-		if (axis_edge_y && axis_y < 0)
+		if (Keyboard[ScanCode::sc_up_arrow] || stick_edge_up || dpad_edge_up)
 		{
 			controly = -1;
 		}
-		else if (axis_edge_y && axis_y > 0)
-		{
-			controly = 1;
-		}
-		else if (Keyboard[ScanCode::sc_up_arrow] || Keyboard[ScanCode::sc_joy_btn12])
-		{
-			controly = -1;
-		}
-		else if (Keyboard[ScanCode::sc_down_arrow] || Keyboard[ScanCode::sc_joy_btn13])
+		else if (Keyboard[ScanCode::sc_down_arrow] || stick_edge_down || dpad_edge_down)
 		{
 			controly = 1;
 		}
@@ -4191,13 +4219,11 @@ int ps_input_floor()
 			controly = 0;
 		}
 
-		if (controlx == 0 && controly == 0)
-		{
-			moveActive = 0;
-		}
-
+		// Update previous state
 		prev_axis_x = axis_x;
 		prev_axis_y = axis_y;
+		prev_dpad_x = dpad_x;
+		prev_dpad_y = dpad_y;
 
 		if (Keyboard[ScanCode::sc_escape] || buttonstate[bt_strafe])
 		{

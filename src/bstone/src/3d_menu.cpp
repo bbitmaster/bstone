@@ -1514,10 +1514,19 @@ void binds_draw_menu()
 				// set escape from joypad start
 				ReadAnyControl(&ci);
 
-				if (Keyboard[ScanCode::sc_escape])
+				if (Keyboard[ScanCode::sc_escape] || LastScan == ScanCode::sc_joy_btn9)
 				{
+					// ESC or Start button cancels without changing binding
 					quit = true;
 					menu_play_esc_pressed_sound();
+				}
+				else if (Keyboard[ScanCode::sc_delete])
+				{
+					// DEL key clears the binding
+					// Note: JY01 can clear bindings outside assignment mode, but here it's assignable
+					binds_remove_binding();
+					ShootSnd();
+					quit = true;
 				}
 				else if (LastScan != ScanCode::sc_none)
 				{
@@ -1541,6 +1550,7 @@ void binds_draw_menu()
 			}
 
 			is_escape_pressed = true;
+			is_delete_pressed = true;  // Prevent JY01 from immediately clearing after assignment
 			binds_is_assigning = false;
 		}
 		else
@@ -1637,7 +1647,7 @@ void binds_draw_menu()
 				is_enter_pressed = false;
 			}
 
-			if (Keyboard[ScanCode::sc_delete])
+			if (Keyboard[ScanCode::sc_delete] || Keyboard[ScanCode::sc_joy_btn1])
 			{
 				if (!is_delete_pressed)
 				{
