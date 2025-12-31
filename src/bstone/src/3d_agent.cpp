@@ -3702,8 +3702,10 @@ int aog_input_floor()
 	auto is_button_pressed = false;
 	auto message = &messages[0];
 	auto prev_stick_move = 0;
-	auto prev_dpad_right = false;
+	auto prev_dpad_up = false;
+	auto prev_dpad_down = false;
 	auto prev_dpad_left = false;
+	auto prev_dpad_right = false;
 
 	constexpr auto joystick_axis_max = 0x7FFF;
 	constexpr auto joystick_axis_scale = 0x8000;
@@ -3769,16 +3771,17 @@ int aog_input_floor()
 		const auto stick_edge_left = (stick_move < 0 && prev_stick_move >= 0);
 
 		// Read D-pad buttons directly from joystick (bypass Keyboard[] edge detection issues)
+		// SDL GameController: up=11, down=12, left=13, right=14
 		bool bt_esc_unused = false;
 		const auto joy_buttons = IN_JoyButtons(bt_esc_unused);
-		const auto dpad_right = (joy_buttons & (1 << 15)) != 0;  // D-pad right
-		const auto dpad_left = (joy_buttons & (1 << 14)) != 0;   // D-pad left
-		const auto dpad_up = (joy_buttons & (1 << 12)) != 0;     // D-pad up
-		const auto dpad_down = (joy_buttons & (1 << 13)) != 0;   // D-pad down
+		const auto dpad_up = (joy_buttons & (1 << 11)) != 0;
+		const auto dpad_down = (joy_buttons & (1 << 12)) != 0;
+		const auto dpad_left = (joy_buttons & (1 << 13)) != 0;
+		const auto dpad_right = (joy_buttons & (1 << 14)) != 0;
 
-		// Edge detection for D-pad
-		const auto dpad_edge_right = (dpad_right && !prev_dpad_right) || (dpad_up && !prev_dpad_right);
-		const auto dpad_edge_left = (dpad_left && !prev_dpad_left) || (dpad_down && !prev_dpad_left);
+		// Edge detection for D-pad (right/up = next, left/down = prev)
+		const auto dpad_edge_right = (dpad_right && !prev_dpad_right) || (dpad_up && !prev_dpad_up);
+		const auto dpad_edge_left = (dpad_left && !prev_dpad_left) || (dpad_down && !prev_dpad_down);
 
 		auto target_level = 0;
 
@@ -4028,8 +4031,10 @@ int aog_input_floor()
 		}
 
 		prev_stick_move = stick_move;
-		prev_dpad_right = dpad_right || dpad_up;
-		prev_dpad_left = dpad_left || dpad_down;
+		prev_dpad_up = dpad_up;
+		prev_dpad_down = dpad_down;
+		prev_dpad_left = dpad_left;
+		prev_dpad_right = dpad_right;
 	}
 
 	IN_ClearKeysDown();
@@ -4146,14 +4151,15 @@ int ps_input_floor()
 		}
 
 		// Read D-pad buttons directly
+		// SDL GameController: up=11, down=12, left=13, right=14
 		bool bt_esc_unused = false;
 		const auto joy_buttons = IN_JoyButtons(bt_esc_unused);
 		auto dpad_x = 0;
 		auto dpad_y = 0;
-		if (joy_buttons & (1 << 15)) dpad_x = 1;   // D-pad right
-		else if (joy_buttons & (1 << 14)) dpad_x = -1;  // D-pad left
-		if (joy_buttons & (1 << 13)) dpad_y = 1;   // D-pad down
-		else if (joy_buttons & (1 << 12)) dpad_y = -1;  // D-pad up
+		if (joy_buttons & (1 << 14)) dpad_x = 1;   // D-pad right
+		else if (joy_buttons & (1 << 13)) dpad_x = -1;  // D-pad left
+		if (joy_buttons & (1 << 12)) dpad_y = 1;   // D-pad down
+		else if (joy_buttons & (1 << 11)) dpad_y = -1;  // D-pad up
 
 		// Edge detection for stick
 		const auto stick_edge_left = (axis_x < 0 && prev_axis_x >= 0);
@@ -4680,7 +4686,7 @@ std::uint8_t ShowRatio(
 		{
 			if (!(loop % 2))
 			{
-				sd_play_player_item_sound(STATS1SND);
+				sd_play_ui_sound(STATS1SND);
 			}
 			VW_WaitVBL(1);
 			VW_UpdateScreen();
@@ -4689,7 +4695,7 @@ std::uint8_t ShowRatio(
 
 	if (!show_stats_quick && numbars)
 	{
-		sd_play_player_item_sound(STATS2SND);
+		sd_play_ui_sound(STATS2SND);
 
 		while (sd_is_playing_any_ui_sound() && LastScan == ScanCode::sc_none)
 		{
