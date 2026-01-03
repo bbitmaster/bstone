@@ -11014,7 +11014,7 @@ auto gp_hide_attacker_info_cvar = bstone::CVar{
 // gp_is_always_run
 
 constexpr auto gp_is_always_run_cvar_name = bstone::StringView{"gp_is_always_run"};
-constexpr auto gp_is_always_run_cvar_default = true;
+constexpr auto gp_is_always_run_cvar_default = false;
 
 auto gp_is_always_run_cvar = bstone::CVar{
 	bstone::CVarBoolTag{},
