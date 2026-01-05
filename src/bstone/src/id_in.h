@@ -321,15 +321,6 @@ extern int in_joy_sensitivity[k_max_joystick_axes];
 extern int JoyNumAxes;
 extern int JoyNumButtons;
 
-extern std::bitset<NumCodes> jstate;
-
-// Clamp function for joystick
-template<class T>
-inline T clamp(const T in, const T min, const T max)
-{
-	return in <= min ? min : in >= max ? max : in;
-}
-
 void in_set_default_bindings();
 
 // Joystick functions
@@ -337,7 +328,6 @@ void init_joystick_gamepad();
 int IN_JoyButtons(bool& bt_esc);
 void IN_GetJoyDelta(int* dx, int* dy);
 int IN_GetJoyAxis(int axis);
-void UpdateRawJoystickAxis();
 void PollJoystickButton();
 
 struct CursorInfo

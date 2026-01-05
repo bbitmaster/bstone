@@ -27,6 +27,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include "3d_menu.h"
 #include "gfxv.h"
 
+#include "bstone_algorithm.h"
 #include "bstone_archiver.h"
 #include "bstone_ascii.h"
 #include "bstone_math.h"
@@ -3753,8 +3754,8 @@ int aog_input_floor()
 		auto stick_move = 0;
 		if (JoyNumAxes > 0)
 		{
-			const auto raw_axis = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
-			const auto dz_factor = clamp<int>(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
+			const auto raw_axis = bstone::clamp(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
+			const auto dz_factor = bstone::clamp(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
 
 			if (raw_axis > dz_factor)
 			{
@@ -4127,9 +4128,9 @@ int ps_input_floor()
 		auto axis_y = 0;
 		if (JoyNumAxes > 1)
 		{
-			const auto raw_axis_x = clamp<int>(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
-			const auto raw_axis_y = clamp<int>(IN_GetJoyAxis(1), -joystick_axis_max, joystick_axis_max);
-			const auto dz_factor = clamp<int>(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
+			const auto raw_axis_x = bstone::clamp(IN_GetJoyAxis(0), -joystick_axis_max, joystick_axis_max);
+			const auto raw_axis_y = bstone::clamp(IN_GetJoyAxis(1), -joystick_axis_max, joystick_axis_max);
+			const auto dz_factor = bstone::clamp(in_joy_deadzone[0] * joystick_axis_scale / 20, 0, joystick_axis_max);
 
 			if (raw_axis_x > dz_factor)
 			{

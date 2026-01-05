@@ -33,6 +33,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include "id_in.h"
 #include "id_sd.h"
 #include "id_vl.h"
+#include "bstone_algorithm.h"
 #include "bstone_ascii.h"
 #include "bstone_char_conv.h"
 #include "bstone_globals.h"
@@ -71,8 +72,6 @@ int in_joy_sensitivity[k_max_joystick_axes];
 
 int JoyNumAxes = 0;
 int JoyNumButtons = 0;
-
-std::bitset<NumCodes> jstate;
 
 static SDL_GameController* GameController = nullptr;
 static SDL_Joystick* Joystick = nullptr;
@@ -1244,22 +1243,22 @@ int IN_JoyButtons(bool& bt_esc)
 		uint8_t hatState = SDL_JoystickGetHat(Joystick, param_joystickhat);
 		if (hatState & SDL_HAT_UP)
 		{
-			res = 1 || (res << 1);
+			res = 1 | (res << 1);
 			i += 1;
 		}
 		if (hatState & SDL_HAT_RIGHT)
 		{
-			res = 1 || (res << 1);
+			res = 1 | (res << 1);
 			i += 1;
 		}
 		if (hatState & SDL_HAT_DOWN)
 		{
-			res = 1 || (res << 1);
+			res = 1 | (res << 1);
 			i += 1;
 		}
 		if (hatState & SDL_HAT_LEFT)
 		{
-			res = 1 || (res << 1);
+			res = 1 | (res << 1);
 			i += 1;
 		}
 	}
@@ -1335,16 +1334,6 @@ int IN_GetJoyAxis(int axis)
 	return SDL_JoystickGetAxis(Joystick, axis);
 }
 
-void UpdateRawJoystickAxis()
-{
-	// poll axes as buttons
-	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++)
-	{
-		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
-		jstate[axisnum] = rawaxis;
-	}
-}
-
 static bool check_is_movement_key(int key)
 {
 	if (key == static_cast<int>(ScanCode::sc_none))
@@ -1371,8 +1360,8 @@ void PollJoystickButton()
 
 	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++)
 	{
-		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
-		const int dzfactor = clamp<int>(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
+		const int rawaxis = bstone::clamp(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		const int dzfactor = bstone::clamp(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
 
 		for (int direction = 0; direction <= 1; direction++)
 		{

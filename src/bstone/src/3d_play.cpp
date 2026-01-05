@@ -19,6 +19,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 #include "id_vl.h"
 #include "3d_menu.h"
 #include "gfxv.h"
+#include "bstone_algorithm.h"
 #include "bstone_scope_exit.h"
 
 
@@ -551,9 +552,9 @@ void PollJoystickMove()
 
 	for (int axisnum = 0; axisnum < JoyNumAxes; axisnum++)
 	{
-		const int rawaxis = clamp<int>(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
-		const int dzfactor = clamp<int>(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
-		int axis = clamp(std::abs(rawaxis) + 1 - dzfactor, 0, 0x8000) * 5 * in_joy_sensitivity[axisnum] / (0x8000 - dzfactor);
+		const int rawaxis = bstone::clamp(IN_GetJoyAxis(axisnum), -0x7FFF, 0x7FFF);
+		const int dzfactor = bstone::clamp(in_joy_deadzone[axisnum] * 0x8000 / 20, 0, 0x7FFF);
+		int axis = bstone::clamp(std::abs(rawaxis) + 1 - dzfactor, 0, 0x8000) * 5 * in_joy_sensitivity[axisnum] / (0x8000 - dzfactor);
 
 		for (int direction = 0; direction <= 1; direction++)
 		{
