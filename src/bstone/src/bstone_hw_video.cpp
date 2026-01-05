@@ -3010,14 +3010,21 @@ try {
 			R3rType::vulkan,
 #endif
 #ifndef BSTONE_R3R_TEST_NO_GL
+#if defined(__aarch64__) || defined(__arm__)
+#ifndef BSTONE_R3R_TEST_NO_GLES_2_0
+			R3rType::gles_2_0,
+#endif
+#endif
 #ifndef BSTONE_R3R_TEST_NO_GL_3_2_C
 			R3rType::gl_3_2_core,
 #endif
 #ifndef BSTONE_R3R_TEST_NO_GL_2_0
 			R3rType::gl_2_0,
 #endif
+#if !defined(__aarch64__) && !defined(__arm__)
 #ifndef BSTONE_R3R_TEST_NO_GLES_2_0
 			R3rType::gles_2_0,
+#endif
 #endif
 #endif
 		};

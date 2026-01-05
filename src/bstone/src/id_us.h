@@ -137,6 +137,8 @@ bool US_LineInput(
 
 // Flag set when US_LineInput confirmation came from joystick button
 extern bool us_last_confirm_was_joystick;
+// Gate joystick-to-Enter mapping in US_LineInput (used for save dialog only)
+extern bool us_allow_joystick_confirm;
 
 int US_RndT();
 

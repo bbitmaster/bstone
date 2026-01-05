@@ -3411,7 +3411,19 @@ std::int16_t CP_SaveGame(
 			VW_UpdateScreen();
 
 
-			if (US_LineInput(LSM_X + LSItems.indent + 2, LSM_Y + which * LSItems.y_spacing, input, input, true, GAME_DESCRIPTION_LEN, LSM_W - LSItems.indent - 10))
+			const auto prev_allow_joy_confirm = us_allow_joystick_confirm;
+			us_allow_joystick_confirm = true;
+			const auto input_ok = US_LineInput(
+				LSM_X + LSItems.indent + 2,
+				LSM_Y + which * LSItems.y_spacing,
+				input,
+				input,
+				true,
+				GAME_DESCRIPTION_LEN,
+				LSM_W - LSItems.indent - 10);
+			us_allow_joystick_confirm = prev_allow_joy_confirm;
+
+			if (input_ok)
 			{
 				// Generate new default name if:
 				// - Name was cleared (empty), OR

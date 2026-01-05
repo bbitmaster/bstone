@@ -70,6 +70,7 @@ int WindowH;
 US_CursorStruct US_CustomCursor; // JAM
 bool use_custom_cursor = false; // JAM
 bool us_last_confirm_was_joystick = false; // Set when US_LineInput confirm came from joystick
+bool us_allow_joystick_confirm = false; // Gate joystick confirm behavior for US_LineInput
 
 // Internal variables
 
@@ -468,15 +469,16 @@ bool US_LineInput(
 		LastASCII = key_None;
 
 #ifdef __EMSCRIPTEN__
-		// Check gamepad A button (0) or Start button (9) as Enter (W3C standard)
-		// Use static to track button state for edge detection (trigger on press, not hold)
+		if (us_allow_joystick_confirm)
 		{
+			// Check gamepad A button (0) or Start button (9) as Enter (W3C standard)
+			// Use static to track button state for edge detection (trigger on press, not hold)
 			static int prev_joy_buttons = 0;
 			bool bt_esc_unused = false;
 			int joy_buttons = IN_JoyButtons(bt_esc_unused);
 			const int confirm_mask = (1 << 0) | (1 << 9);  // A=0, Start=9
-			bool is_pressed = (joy_buttons & confirm_mask) != 0;
-			bool was_pressed = (prev_joy_buttons & confirm_mask) != 0;
+			const bool is_pressed = (joy_buttons & confirm_mask) != 0;
+			const bool was_pressed = (prev_joy_buttons & confirm_mask) != 0;
 			prev_joy_buttons = joy_buttons;
 
 			// Only trigger on button-down edge (was not pressed, now is pressed)
@@ -485,6 +487,13 @@ bool US_LineInput(
 				sc = ScanCode::sc_return;
 				us_last_confirm_was_joystick = true;
 			}
+		}
+#else
+		// Native SDL builds: treat JY00 (button 0 / A) as Enter only when enabled.
+		if (us_allow_joystick_confirm && sc == ScanCode::sc_joy_btn0)
+		{
+			sc = ScanCode::sc_return;
+			us_last_confirm_was_joystick = true;
 		}
 #endif
 

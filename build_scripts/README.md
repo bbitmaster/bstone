@@ -26,6 +26,7 @@ The game data directory should contain the Blake Stone WAD files (e.g., `AUDIOHE
 | `build_native.sh` | Build native Linux binary |
 | `build_windows.sh` | Cross-compile Windows 64-bit binary |
 | `build_emscripten.sh` | Build WebAssembly/Emscripten version |
+| `build_rocknix.sh` | Cross-compile for ROCKNIX (RK3566, aarch64) |
 | `run_native.sh` | Run the native Linux build |
 | `run_wine.sh` | Run the Windows build under Wine |
 | `host_emscripten.sh` | Serve the Emscripten build locally |
@@ -49,6 +50,13 @@ yay -S mingw-w64-sdl2  # From AUR
 ```bash
 sudo pacman -S emscripten
 ```
+
+**ROCKNIX cross-compile:**
+- Requires the ROCKNIX toolchain from `rocknix_stuff/distribution/`.
+- Default path used by `build_rocknix.sh`:
+  `/home/ben/claude_code_dir/rocknix_stuff/distribution/build.ROCKNIX-RK3566.aarch64/toolchain`
+- Override with:
+  `ROCKNIX_TOOLCHAIN=/path/to/toolchain ./build_rocknix.sh`
 
 **Running Windows build under Wine:**
 ```bash
@@ -91,6 +99,7 @@ sudo apt install wine64
 | Native | `build_native/src/bstone/bstone` |
 | Windows | `build_windows/src/bstone/bstone.exe` + DLLs |
 | Emscripten | `build_emscripten/src/bstone/bstone.html` + .js/.wasm/.data |
+| ROCKNIX (aarch64) | `build_rocknix/src/bstone/bstone` |
 
 ## Notes
 

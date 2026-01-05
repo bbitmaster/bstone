@@ -166,7 +166,8 @@ try {
 		window.set_display_mode(desire_window_display_mode);
 	}
 	window.set_fullscreen_mode(desire_fullscreen_mode);
-	if (desire_fullscreen_mode == sys::WindowFullscreenType::none)
+	if (desire_fullscreen_mode == sys::WindowFullscreenType::none ||
+		desire_fullscreen_mode == sys::WindowFullscreenType::fake)
 	{
 		sys::WindowSize desire_window_size{};
 		desire_window_size.width = desire_window_display_mode.width;
